@@ -44,6 +44,12 @@ def test_hls_stream(web, with_models, tmp_path):
     assert [p.name for p in (tmp_path / result["title"]).iterdir()] == [result["title"] + ".mp4"]
 
 
+def test_a_video_in_another_format_is_converted_to_mp4(web, with_models, tmp_path):
+    result = fetch(f"{web}/talk.ogv", "both", str(tmp_path))
+    assert [p.name for p in sorted((tmp_path / "talk").iterdir())] == ["talk.mp3", "talk.mp4"]
+    assert result["files"] == [str(tmp_path / "talk" / "talk.mp4"), str(tmp_path / "talk" / "talk.mp3")]
+
+
 def test_same_link_twice_is_never_overwritten(web, with_models, tmp_path):
     first = fetch(f"{web}/talk.mp3", "audio", str(tmp_path))
     second = fetch(f"{web}/talk.mp3", "audio", str(tmp_path))

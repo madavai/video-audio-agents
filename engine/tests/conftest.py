@@ -57,10 +57,13 @@ def media(ffmpeg, tmp_path_factory):
     make("-i", speech, "talk.mp3")
     make("-f", "lavfi", "-i", "testsrc=size=320x240:rate=25", "-i", speech, "-shortest",
          "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", "talk.mp4")
+    make("-i", "talk.mp4", "-c:v", "libtheora", "-c:a", "libvorbis", "talk.ogv")  # can't go into an mp4 as is
     (folder / "hls").mkdir()
     make("-i", "talk.mp4", "-c", "copy", "-f", "hls", "-hls_time", "2", "-hls_playlist_type", "vod",
          "hls/index.m3u8")
     make("-stream_loop", "9", "-i", speech, "long.mp3")  # 110 seconds
+    make("-f", "lavfi", "-i", "testsrc=size=320x240:rate=25", "-i", "long.mp3", "-shortest",
+         "-c:v", "libx264", "-g", "50", "-pix_fmt", "yuv420p", "-c:a", "aac", "long.mp4")  # a keyframe every 2 s
     make("-f", "lavfi", "-i", "sine=frequency=440:duration=180", "-b:a", "128k", "slow.mp3")
     # A lesson page whose video is added by a script, so only a real browser finds it.
     (folder / "lesson.html").write_text(

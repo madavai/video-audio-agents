@@ -7,7 +7,7 @@ import anyio
 from mcp.client.session import ClientSession
 from mcp.client.stdio import StdioServerParameters, stdio_client
 
-TOOLS = {"check_setup", "fetch_media", "transcribe", "save_text"}
+TOOLS = {"check_setup", "fetch_media", "transcribe", "save_text", "make_subtitles", "cut_clip", "merge_audio_video"}
 
 
 async def talk_to_engine(data_dir, calls):
