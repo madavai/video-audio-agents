@@ -10,7 +10,7 @@ from typing import Literal
 
 from mcp.server.mcpserver import Context, MCPServer
 
-from . import media, models, progress, setup_check, texts, transcribe as speech_to_text
+from . import clips, media, models, progress, setup_check, subtitles, texts, transcribe as speech_to_text
 from .paths import data_dir
 
 mcp = MCPServer(
@@ -61,6 +61,34 @@ def save_text(next_to: str, label: str, text: str, ext: Literal["txt", "md", "sr
         return json.dumps(texts.save_text(next_to, label, text, ext, append_to))
     except Exception as e:
         raise progress.plain_error(e) from e
+
+
+@mcp.tool()
+def make_subtitles(segments_file: str, format: Literal["srt", "vtt"] = "srt", max_chars: int = 42) -> str:
+    """Subtitles (.srt, or .vtt for the web) from a .segments.json file: the original or a translated one.
+    At most 2 lines of max_chars characters and 6 seconds per caption. Saved next to the segments file.
+    Returns {subtitle_file, cues}."""
+    try:
+        return json.dumps(subtitles.make_subtitles(segments_file, format, max_chars))
+    except Exception as e:
+        raise progress.plain_error(e) from e
+
+
+@mcp.tool()
+async def cut_clip(video_file: str, start: str, end: str, ctx: Context, subtitle_file: str | None = None) -> str:
+    """Cuts the part between start and end (minutes:seconds like "01:30", or seconds like "90") out of a video
+    or audio file, saved next to it. Without subtitle_file it is copied as is (instant; the start may move
+    back a second or two to the nearest keyframe). With subtitle_file (.srt or .vtt of the same video) the
+    captions are burned into the picture (slower; exact start). Returns {clip_file}."""
+    return json.dumps(await progress.run(ctx, clips.cut_clip, video_file, start, end, subtitle_file))
+
+
+@mcp.tool()
+async def merge_audio_video(video_file: str, audio_file: str, ctx: Context) -> str:
+    """Replaces a video's sound with an audio file (for dubbing). The video keeps its length: silence is added
+    if the audio is shorter, the audio is cut if longer. "Lesson (Hindi).mp3" under "Lesson.mp4" is saved as
+    "Lesson (Hindi).mp4". Returns {output_file}."""
+    return json.dumps(await progress.run(ctx, clips.merge_audio_video, video_file, audio_file))
 
 
 def setup_logging() -> None:

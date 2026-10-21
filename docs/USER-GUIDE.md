@@ -21,6 +21,10 @@ Paste one or more links and say what you want. Examples:
 > Transcript of this video with chapters and a summary.
 >
 > Accurate transcript of this talk, plus study notes and the key quotes.
+>
+> Subtitles for this video.
+>
+> Cut 01:00 to 01:30 out of this video, with captions.
 
 What you get, for each link, in its own folder in `Documents/VideoAudioAgents/<title>/`:
 
@@ -31,10 +35,14 @@ What you get, for each link, in its own folder in `Documents/VideoAudioAgents/<t
 | transcript | `<title>.txt`, one line per sentence with its time, like `[12.5s] ...` (or paragraphs, if you say "no timestamps") |
 | summary, chapters, key points, quotes, action items, study notes | `<title> (summary).md`, `<title> (chapters).md`, ... |
 | clean transcript (no "um"s, proper punctuation) | `<title> (clean).txt` |
+| subtitles | `<title>.srt` (or `.vtt` for the web): at most 2 short lines, at most 6 seconds each |
+| a clip | `<title> (clip 1-00 to 1-30).mp4`, or `... (captions).mp4` with the captions burned into the picture |
 
 A `<title>.segments.json` file is also saved next to every transcript. It holds the timings that subtitles and dubbing are made from; you can ignore it.
 
 Nothing is ever overwritten: asking again gives `<title> (2).mp3` and so on.
+
+**Clips:** without captions, a clip is made instantly, but it may start a second or two early (videos can only be cut cleanly at certain frames). With captions it is re-made and starts exactly on time. Times past the end of the video are cut back to the end.
 
 **Accuracy:** "fast", "balanced" (the default) or "accurate". Accurate is slower and downloads 1.5 GB the first time.
 

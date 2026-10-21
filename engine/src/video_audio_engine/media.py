@@ -99,17 +99,20 @@ def options(job, save: str, base: str, ffmpeg: Path) -> dict:
 
     def converting(d):
         job.check()
-        if d["status"] == "started" and d["postprocessor"] in ("Merger", "ExtractAudio"):
-            job.report(96, "Making the mp3" if d["postprocessor"] == "ExtractAudio" else "Joining video and sound")
+        steps = {"Merger": "Joining video and sound", "VideoConvertor": "Converting the video to mp4",
+                 "ExtractAudio": "Making the mp3"}
+        if d["status"] == "started" and d["postprocessor"] in steps:
+            job.report(96, steps[d["postprocessor"]])
 
     opts = {"outtmpl": base + ".%(ext)s", "noplaylist": True, "quiet": True, "noprogress": True, "logger": ToLog(),
             "ffmpeg_location": str(ffmpeg), "progress_hooks": [progress], "postprocessor_hooks": [converting],
             "postprocessors": [], **js_runtime()}
     if save == "audio":
         opts["format"] = "ba/b"
-    else:  # the best picture, preferring formats every player can open
-        opts.update(format="bv*+ba/b", format_sort=["vcodec:h264", "res", "acodec:m4a"], merge_output_format="mp4")
-        opts["postprocessors"].append({"key": "FFmpegVideoRemuxer", "preferedformat": "mp4"})
+    else:  # the best picture in formats every player opens; anything else is converted to mp4
+        opts.update(format="bv*+ba/b", format_sort=["vcodec:h264", "ext:mp4:m4a", "res", "acodec:m4a"],
+                     merge_output_format="mp4")
+        opts["postprocessors"].append({"key": "FFmpegVideoConvertor", "preferedformat": "mp4"})
     if save in ("audio", "both"):
         opts["postprocessors"].append({"key": "FFmpegExtractAudio", "preferredcodec": "mp3"})
         opts["keepvideo"] = save == "both"

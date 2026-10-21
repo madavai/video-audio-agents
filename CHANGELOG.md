@@ -2,6 +2,13 @@
 
 ## Unreleased (1.0.0)
 
+### Phase 3: subtitles and clips
+- `make_subtitles`: .srt or .vtt from a transcript or a translated one: at most 2 lines of 42 characters and 6 seconds per caption, nothing lost or reworded.
+- `cut_clip`: a clip between two times, copied instantly, or with the captions burned into the picture.
+- `merge_audio_video`: puts a new sound track under a video (used for dubbing), keeping the video's length.
+- The transcriber agent makes subtitles and clips on request.
+- Downloads now prefer mp4 files and convert other video formats to mp4 (some sites only offer .ogv or .webm).
+
 ### Phase 2: transcriber
 - New **transcriber** agent: download video, audio or both from any link, transcripts, and notes (summary, chapters, key points, quotes, action items, study notes, clean transcript).
 - `fetch_media`: YouTube and most video sites, direct file links, HLS streams, and pages behind a login (opens the page in Edge or Chrome and remembers the login). One folder per link; never overwrites; Esc removes half-made files; a dead link or a copy-protected video gets a plain message.
