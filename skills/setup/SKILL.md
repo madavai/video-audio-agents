@@ -48,6 +48,11 @@ Tell the person which mode and its size before starting. Re-running setup is alw
    - next: "Restart Claude Code (close it and open it again) so the engine starts. Then type /mcp: `engine` should show as connected." If uv was newly installed in step 1, the restart is required.
    - something to try: "Paste a YouTube link and ask for the video and a transcript."
 
+## Login browser (only on request)
+
+Pages behind a login open in Edge or Chrome. If check_setup reports `"browser": null` and the person wants to download from such pages, or they ask to "set up the login browser", install Playwright's own Chromium (about 150 MB):
+`uv run --frozen --project "${CLAUDE_PLUGIN_ROOT}/engine" playwright install chromium`
+
 ## If something fails
 
 Say which step failed and why, in one sentence (for example "the internet connection dropped during the download"). Then: "Running the setup again continues where it stopped." The details are in `${CLAUDE_PLUGIN_DATA}/engine.log`. Do not try other install methods or edit any files.

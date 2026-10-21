@@ -33,16 +33,23 @@ def output_root() -> Path:
     return documents_dir() / "VideoAudioAgents"
 
 
-def safe_name(name: str, fallback: str = "untitled") -> str:
-    """A file or folder name that works on every computer: no forbidden characters, at most 80 long."""
-    name = re.sub(r'[\\/:*?"<>|\x00-\x1f]', "", name).strip().rstrip(".")[:80].strip()
+def safe_name(name: str, fallback: str = "untitled", limit: int = 60) -> str:
+    """A file or folder name that works on every computer: no forbidden characters, at most `limit` long.
+    Titles name both the folder and the files in it, so 60 keeps whole paths under Windows' 260 limit."""
+    name = re.sub(r'[\\/:*?"<>|\x00-\x1f]', "", name).strip().rstrip(".")[:limit].strip()
     return name or fallback
+
+
+def free_name(folder: Path, name: str, exts) -> str:
+    """A name with none of these extensions used yet: "name", then "name (2)", "name (3)"...
+    For files made together (an .mp4 and its .mp3), so they keep the same name."""
+    folder, name = Path(folder), safe_name(name, limit=100)  # room for a label such as " (summary)"
+    candidate, n = name, 2
+    while any((folder / f"{candidate}{ext}").exists() for ext in exts):
+        candidate, n = f"{name} ({n})", n + 1
+    return candidate
 
 
 def free_path(folder: Path, name: str, ext: str) -> Path:
     """A path not used yet: "name.mp3", then "name (2).mp3", "name (3).mp3"... Never overwrites."""
-    folder, name = Path(folder), safe_name(name)
-    path, n = folder / f"{name}{ext}", 2
-    while path.exists():
-        path, n = folder / f"{name} ({n}){ext}", n + 1
-    return path
+    return Path(folder) / f"{free_name(folder, name, [ext])}{ext}"

@@ -17,3 +17,4 @@ VideoAudioAgents/
 .idea/
 .DS_Store
 Thumbs.db
+.test-data/

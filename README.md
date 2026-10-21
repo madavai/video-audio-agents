@@ -38,7 +38,7 @@ Everything for one link goes into its own folder in `Documents/VideoAudioAgents/
 
 ## Status
 
-Being built in phases ([build plan](docs/BUILD-PLAN.md)). Done so far: the install, the setup and the engine's set-up check. The agents arrive in the next phases; see the [changelog](CHANGELOG.md).
+Being built in phases ([build plan](docs/BUILD-PLAN.md)). Done so far: the install and setup, and the **transcriber** (downloads, transcripts, summaries, chapters and notes). Subtitles, clips, translation, voice and posts arrive in the next phases; see the [changelog](CHANGELOG.md) and the [user guide](docs/USER-GUIDE.md).
 
 ## Updating
 
