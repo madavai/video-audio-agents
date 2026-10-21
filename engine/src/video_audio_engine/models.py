@@ -17,11 +17,6 @@ CHATTERBOX = ("ResembleAI/chatterbox", "5bb1f6ee58e50c3b8d408bc82a6d3740c2db6e18
 # Each model: a plain name for messages, its Hugging Face repo at a fixed version, and its files with exact sizes.
 # The three Chatterbox models share one folder (and some files), so a shared file is downloaded once.
 MODELS = {
-    "tiny": {
-        "label": "speech-to-text, tiny (tests only)",
-        "repo": ("Systran/faster-whisper-tiny", "d90ca5fe260221311c53c58e660288d3deb8d356"),
-        "files": {"config.json": 2249, "model.bin": 75538270, "tokenizer.json": 2203239, "vocabulary.txt": 459861},
-    },
     "base": {
         "label": "speech-to-text, fast",
         "repo": ("Systran/faster-whisper-base", "ebe41f70d5b6dfa9166e2c581c45c9c0cfc57b66"),

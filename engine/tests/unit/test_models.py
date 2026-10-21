@@ -13,7 +13,6 @@ def test_every_setup_model_is_in_the_table():
 
 def test_standard_is_part_of_full():
     assert set(models.STANDARD) <= set(models.FULL)
-    assert "tiny" not in models.FULL  # tiny is only for tests
 
 
 def test_missing_gb_counts_each_file_once():
@@ -25,17 +24,17 @@ def test_missing_gb_counts_each_file_once():
 
 
 def test_a_file_of_the_wrong_size_counts_as_missing():
-    files = models.MODELS["tiny"]["files"]
+    files = models.MODELS["base"]["files"]
     for file, size in files.items():
-        path = models.folder("tiny") / file
+        path = models.folder("base") / file
         path.parent.mkdir(parents=True, exist_ok=True)
         with open(path, "wb") as f:
             f.truncate(size)
-    assert models.is_present("tiny")
-    with open(models.folder("tiny") / "model.bin", "ab") as f:
+    assert models.is_present("base")
+    with open(models.folder("base") / "model.bin", "ab") as f:
         f.truncate(10)  # a half-written file
-    assert not models.is_present("tiny")
-    assert list(models.missing_files(["tiny"])) == [models.folder("tiny") / "model.bin"]
+    assert not models.is_present("base")
+    assert list(models.missing_files(["base"])) == [models.folder("base") / "model.bin"]
 
 
 def test_model_urls_point_at_the_pinned_version():

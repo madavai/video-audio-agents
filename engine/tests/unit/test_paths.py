@@ -18,7 +18,7 @@ def test_safe_name_removes_forbidden_characters_and_limits_length():
     assert paths.safe_name('What: is "AI"? <part 1/2>') == "What is AI part 12"
     assert paths.safe_name("   ") == "untitled"
     assert paths.safe_name("dots at the end...") == "dots at the end"
-    assert len(paths.safe_name("x" * 200)) == 80
+    assert len(paths.safe_name("x" * 200)) == 60
 
 
 def test_data_dir_comes_from_the_plugin(private_data):

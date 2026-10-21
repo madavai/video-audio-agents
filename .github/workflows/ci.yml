@@ -23,6 +23,11 @@ jobs:
           cache-dependency-glob: engine/uv.lock
       - name: Install the engine (locked versions)
         run: uv sync --frozen
+      - name: Keep ffmpeg and the fast speech model between runs
+        uses: actions/cache@v6
+        with:
+          path: engine/.test-data
+          key: test-data-${{ runner.os }}-${{ hashFiles('engine/src/video_audio_engine/models.py') }}
       - name: Check the plugin files are valid JSON
         run: uv run --frozen python -c "import json; [json.load(open(f, encoding='utf-8')) for f in ('../.mcp.json', '../.claude-plugin/plugin.json', '../.claude-plugin/marketplace.json')]"
       - name: Unit and integration tests

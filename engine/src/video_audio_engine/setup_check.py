@@ -23,7 +23,16 @@ def find_browser() -> str | None:
     else:
         found = {"edge": bool(shutil.which("microsoft-edge") or shutil.which("microsoft-edge-stable")),
                  "chrome": bool(shutil.which("google-chrome") or shutil.which("google-chrome-stable"))}
+    found["chromium"] = playwright_chromium()
     return next((name for name, ok in found.items() if ok), None)
+
+
+def playwright_chromium() -> bool:
+    """Whether Playwright's own Chromium is installed (only when the setup was asked to install it)."""
+    default = {"win32": Path(os.environ.get("LOCALAPPDATA", "")) / "ms-playwright",
+               "darwin": Path.home() / "Library" / "Caches" / "ms-playwright"}
+    root = os.environ.get("PLAYWRIGHT_BROWSERS_PATH") or default.get(sys.platform, Path.home() / ".cache" / "ms-playwright")
+    return any(Path(root).glob("chromium-*"))
 
 
 def find_deno() -> str | None:

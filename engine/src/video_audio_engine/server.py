@@ -6,9 +6,11 @@ import logging.handlers
 import os
 import sys
 
-from mcp.server.mcpserver import MCPServer
+from typing import Literal
 
-from . import models, setup_check
+from mcp.server.mcpserver import Context, MCPServer
+
+from . import media, models, progress, setup_check, texts, transcribe as speech_to_text
 from .paths import data_dir
 
 mcp = MCPServer(
@@ -24,6 +26,41 @@ def check_setup() -> str:
     downloaded and how many GB each missing one needs, free memory and disk. Fast; downloads nothing.
     Call it once before heavy work."""
     return json.dumps(setup_check.check_setup())
+
+
+@mcp.tool()
+async def fetch_media(url: str, save: Literal["audio", "video", "both"], ctx: Context, folder: str | None = None) -> str:
+    """Downloads one link: save="audio" gives an .mp3, "video" an .mp4, "both" both. Works for YouTube and most
+    video sites, direct file links, and pages behind a login (it opens the page in Edge or Chrome; the person may
+    need to log in there the first time). Files go into Documents/VideoAudioAgents/<title>/, or <folder>/<title>/.
+    Returns {title, folder, files, used_browser}. One link per call."""
+    return json.dumps(await progress.run(ctx, media.fetch_media, url, save, folder))
+
+
+@mcp.tool()
+async def transcribe(file: str, ctx: Context, accuracy: Literal["fast", "balanced", "accurate"] = "balanced",
+                     timestamps: bool = True, delete_audio_after: bool = False) -> str:
+    """Speech to text for an audio or video file. Writes <name>.txt next to it (one "[12.5s] text" line per
+    segment with timestamps, otherwise paragraphs) and <name>.segments.json (start, end, text), which subtitles,
+    clips and dubbing are made from. accuracy: fast, balanced (default) or accurate (slower; downloads 1.5 GB
+    the first time). delete_audio_after removes the audio file afterwards (never a video).
+    Returns {transcript_file, segments_file, language, lines, duration_seconds}."""
+    return json.dumps(await progress.run(ctx, speech_to_text.transcribe, file, accuracy, timestamps,
+                                         delete_audio_after))
+
+
+@mcp.tool()
+def save_text(next_to: str, label: str, text: str, ext: Literal["txt", "md", "srt", "json"] = "txt",
+              append_to: str | None = None) -> str:
+    """Saves text you wrote (a translation, summary, chapters, notes, a post, a glossary) as "<name> (<label>).ext"
+    next to the file `next_to`, never overwriting. For long texts, save the first part, then pass the returned
+    path as append_to for each later part. JSON next to a .segments.json file is saved as
+    "<name> (<label>).segments.json" and must be a list of {start, end, text}; appending extends the list.
+    Returns {file}."""
+    try:
+        return json.dumps(texts.save_text(next_to, label, text, ext, append_to))
+    except Exception as e:
+        raise progress.plain_error(e) from e
 
 
 def setup_logging() -> None:
