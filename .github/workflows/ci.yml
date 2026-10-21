@@ -1,0 +1,29 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: engine
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
+        with:
+          enable-cache: true
+          cache-dependency-glob: engine/uv.lock
+      - name: Install the engine (locked versions)
+        run: uv sync --frozen
+      - name: Check the plugin files are valid JSON
+        run: uv run --frozen python -c "import json; [json.load(open(f, encoding='utf-8')) for f in ('../.mcp.json', '../.claude-plugin/plugin.json', '../.claude-plugin/marketplace.json')]"
+      - name: Unit and integration tests
+        run: uv run --frozen pytest -v

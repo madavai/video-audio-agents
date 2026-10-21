@@ -1,0 +1,12 @@
+{
+  "name": "madavai",
+  "owner": { "name": "Madav", "url": "https://github.com/madavai" },
+  "description": "Plugins from Madav.",
+  "plugins": [
+    {
+      "name": "video-audio-agents",
+      "source": ".",
+      "description": "Download, transcribe, translate, dub, voice and publish agents."
+    }
+  ]
+}
