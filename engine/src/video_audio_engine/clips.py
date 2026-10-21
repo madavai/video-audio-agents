@@ -10,6 +10,7 @@ from pathlib import Path
 from mcp.server.mcpserver.exceptions import ToolError
 
 from . import models, paths, subtitles
+from .texts import existing
 
 log = logging.getLogger("engine.clips")
 NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)  # no console window flashing up on Windows
@@ -102,13 +103,6 @@ def probe_seconds(file: Path) -> float:
 
 def has_video(file: Path) -> bool:
     return "video" in probe(file, "-select_streams", "v", "-show_entries", "stream=codec_type")
-
-
-def existing(file: str) -> Path:
-    path = Path(file)
-    if not path.is_file():
-        raise ToolError(f"There is no file at {path}.")
-    return path
 
 
 def seconds(value) -> float:

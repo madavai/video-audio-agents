@@ -50,6 +50,22 @@ Nothing is ever overwritten: asking again gives `<title> (2).mp3` and so on.
 
 **Stopping:** press Esc. The job stops; files that were finished are kept, half-made ones are removed.
 
+## Translate
+
+> Translate it to Kannada.
+>
+> Kannada subtitles for this video.
+>
+> Translate the summary to Hindi.
+>
+> Always keep "process map" in English, and write Madav as ಮಾಧವ್.
+
+You get `<title> (Kannada).txt` next to the transcript, line for line with the same times, and for subtitles `<title> (Kannada).srt`. Any text (a summary, notes, posts) can be translated the same way. Translation is done by Claude, so any language works.
+
+Long transcripts are translated in parts and then checked line by line against the original, so no sentence is skipped.
+
+**Glossary:** names and terms you want kept a certain way are saved in `Documents/VideoAudioAgents/glossary.md` and used in every translation. You can also edit that file yourself: one term per line, like `process map → keep in English`.
+
 ## Troubleshooting
 
 - **"Run the setup"**: say "set up video audio agents". Running it again is always safe; it skips what is already there and continues broken downloads.
