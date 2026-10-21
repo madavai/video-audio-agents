@@ -1,0 +1,19 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Never committed: downloaded models and programs, browser login profiles, logs, outputs
+models/
+bin/
+browser-profile/
+*.log
+*.part
+VideoAudioAgents/
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

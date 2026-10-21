@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "engine": {
+      "type": "stdio",
+      "command": "uv",
+      "args": ["run", "--frozen", "--quiet", "--project", "${CLAUDE_PLUGIN_ROOT}/engine", "video-audio-engine"],
+      "env": { "VAA_DATA": "${CLAUDE_PLUGIN_DATA}" },
+      "timeout": 14400000
+    }
+  }
+}

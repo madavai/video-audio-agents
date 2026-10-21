@@ -1,0 +1,10 @@
+{
+  "name": "video-audio-agents",
+  "version": "1.0.0",
+  "description": "Download, transcribe, translate, dub, voice and publish: four agents for video and audio links.",
+  "author": { "name": "Madav", "url": "https://github.com/madavai" },
+  "homepage": "https://github.com/madavai/video-audio-agents",
+  "repository": "https://github.com/madavai/video-audio-agents",
+  "license": "MIT",
+  "keywords": ["transcribe", "youtube", "translate", "dubbing", "voice", "subtitles", "shorts", "social"]
+}

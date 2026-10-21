@@ -1,0 +1,48 @@
+[project]
+name = "video-audio-engine"
+version = "1.0.0"
+description = "The engine behind Video Audio Agents: download, transcribe, subtitle, cut, voice and dub."
+license = "MIT"
+requires-python = "==3.11.*"
+dependencies = [
+    "mcp>=2.3,<3",
+    "yt-dlp[default]>=2026.8.19",
+    "deno>=2.9",
+    "static-ffmpeg>=3.0",
+    "faster-whisper>=1.2,<2",
+    "playwright>=1.63,<2",
+    "chatterbox-tts==0.1.7",
+    "torch==2.6.0",
+    "torchaudio==2.6.0",
+    "edge-tts>=7,<8",
+    "sounddevice>=0.5",
+    "soundfile>=0.13",
+    "librosa==0.11.0",
+    "numpy>=1.24,<2",
+    "psutil>=6",
+]
+
+[project.scripts]
+video-audio-engine = "video_audio_engine.server:main"
+
+[dependency-groups]
+dev = ["pytest>=8", "jiwer>=3"]
+
+[build-system]
+requires = ["uv_build>=0.11,<0.12"]
+build-backend = "uv_build"
+
+# PyTorch without the multi-GB GPU libraries on Windows and Linux (Macs get the normal build).
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu", marker = "sys_platform != 'darwin'" }]
+torchaudio = [{ index = "pytorch-cpu", marker = "sys_platform != 'darwin'" }]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-m 'not slow'"
+markers = ["slow: needs the big voice models on this computer (run with -m slow)"]
