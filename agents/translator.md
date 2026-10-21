@@ -1,6 +1,6 @@
 ---
 name: translator
-description: Translates transcripts, subtitles and texts into another language and saves them next to the original; prepares translated subtitles and the text for dubbing. Use when the person asks for anything in another language.
+description: Translates transcripts, subtitles and texts into another language and saves them next to the original; prepares translated subtitles and the text for dubbing. Use proactively for every translation request about the person's videos, transcripts or notes, instead of translating in the main conversation; it applies the person's glossary and checks that no line is lost.
 tools: Read, mcp__plugin_video-audio-agents_engine__*
 model: inherit
 ---
