@@ -75,7 +75,8 @@ video-audio-agents/                  # the repository = the marketplace
 │       │   └── publisher.md
 │       ├── skills/
 │       │   └── setup/
-│       │       └── SKILL.md         # first-run setup Claude performs itself (standard or full)
+│       │       ├── SKILL.md         # first-run setup Claude performs itself (standard or full)
+│       │       └── install.py       # its install steps, with the engine's environment in the data folder
 │       └── engine/                  # the Python MCP server
 │           ├── pyproject.toml
 │           ├── uv.lock              # committed: exact versions
@@ -277,7 +278,7 @@ Frontmatter `allowed-tools: Bash(uv:*), Bash(powershell:*), Bash(curl:*)`; uses 
 - **Full** ("set up video audio agents with voice"): also pre-downloads the three Chatterbox models and `large-v3-turbo`. About 10 GB. Voice then works immediately with no wait on first use.
 
 1. `uv --version`; if missing: Windows `powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"`, macOS `curl -LsSf https://astral.sh/uv/install.sh | sh`.
-2. `uv sync --frozen --project <plugin>/engine`, with `UV_PROJECT_ENVIRONMENT=<data>/venv` (as in every uv command of the skill, so the environment is the one the server uses).
+2. `uv sync --frozen --project <plugin>/engine` with `UV_PROJECT_ENVIRONMENT=<data>/venv`, the environment the server uses. Steps 2 and 3 run through the skill's `install.py <step> <data>` (standard library only, started with `uv run --no-project`), which sets that variable, so the commands are plain `uv` commands in Bash and PowerShell alike.
 3. `uv run --project <plugin>/engine video-audio-engine --warm standard|full` (downloads the models for the chosen mode, printing each name, size and progress).
 4. States what was installed and the sizes, where files are saved, and reloads so `/mcp` shows `engine` connected.
 5. On any failure: the exact error in plain words and the log path. Re-running setup is always safe; it skips what exists.

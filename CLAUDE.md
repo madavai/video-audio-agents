@@ -25,7 +25,7 @@ Four Claude Code agents (transcriber, translator, voice, publisher), one setup s
 
 ## How the engine is put together
 - The `engine` MCP server is declared in `plugins/video-audio-agents/.claude-plugin/plugin.json` (`mcpServers`). Never add a `.mcp.json` at the repo root: Claude Code opened in this folder would read it as a project server without substituting `${CLAUDE_PLUGIN_ROOT}`, and it fails.
-- The engine's Python environment is `${CLAUDE_PLUGIN_DATA}/venv`: the server's `env` sets `UV_PROJECT_ENVIRONMENT`, and every uv command in the setup skill starts with the same setting. `${CLAUDE_PLUGIN_ROOT}` is replaced on every update, so nothing that must last goes there; a uv command without the setting would build a second 3 GB environment inside the plugin.
+- The engine's Python environment is `${CLAUDE_PLUGIN_DATA}/venv`: the server's `env` sets `UV_PROJECT_ENVIRONMENT`, and the setup skill's install steps run through `skills/setup/install.py`, which sets the same variable (a `$env:` assignment in PowerShell always asks the person, so the skill's commands stay plain `uv run`). `${CLAUDE_PLUGIN_ROOT}` is replaced on every update, so nothing that must last goes there; a uv command on the engine without the variable would build a second 3 GB environment inside the plugin.
 - `engine/src/video_audio_engine/server.py` holds the tool definitions only; each calls a module.
 - Slow tools run their work through `progress.run(ctx, work)`: it runs `work(job)` in a thread, sends progress at every 1%, and on Esc makes `job.report()` raise `Stopped` so the work can remove partial files.
 - Raise `ToolError("one plain sentence")` for failures the person should read; anything else is logged to `<data>/engine.log` and reported as "Something went wrong".

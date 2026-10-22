@@ -4,14 +4,10 @@ description: Sets up Video Audio Agents on this computer (installs the engine an
 allowed-tools:
   - Bash(uv *)
   - Bash(~/.local/bin/uv *)
-  - Bash(UV_PROJECT_ENVIRONMENT="${CLAUDE_PLUGIN_DATA}/venv" uv *)
-  - Bash(UV_PROJECT_ENVIRONMENT="${CLAUDE_PLUGIN_DATA}/venv" ~/.local/bin/uv *)
   - Bash(powershell *)
   - Bash(curl *)
   - PowerShell(uv *)
   - PowerShell(~/.local/bin/uv *)
-  - PowerShell($env:UV_PROJECT_ENVIRONMENT = "${CLAUDE_PLUGIN_DATA}/venv"; uv *)
-  - PowerShell($env:UV_PROJECT_ENVIRONMENT = "${CLAUDE_PLUGIN_DATA}/venv"; ~/.local/bin/uv *)
   - mcp__plugin_video-audio-agents_engine__check_setup
 ---
 
@@ -21,7 +17,7 @@ The person may not be technical. Keep every message short and plain. Never show 
 
 The plugin lives at `${CLAUDE_PLUGIN_ROOT}`; its private data folder is `${CLAUDE_PLUGIN_DATA}`. Run each command below exactly as written, one per call, with nothing added (these exact commands are pre-approved). Use the Bash tool if you have it, otherwise PowerShell.
 
-The engine's private Python goes in the data folder (`venv`), never inside the plugin, which is replaced on every update. So every `uv` command after step 1 starts with the setting shown, exactly as written; in the PowerShell tool, start it with `$env:UV_PROJECT_ENVIRONMENT = "${CLAUDE_PLUGIN_DATA}/venv";` instead of `UV_PROJECT_ENVIRONMENT="${CLAUDE_PLUGIN_DATA}/venv"`. Without it, uv would build a second 3 GB copy inside the plugin.
+The install steps run through `install.py` beside this file: it puts the engine's private Python in the data folder (`venv`), where plugin updates don't remove it. Never run `uv sync` or `uv run` on the engine directly: that would build a second 3 GB copy inside the plugin.
 
 ## Choose the mode
 
@@ -40,11 +36,11 @@ Tell the person which mode and its size before starting. Re-running setup is alw
    Then use `~/.local/bin/uv` in place of `uv` for the rest of this setup, because the current window doesn't know the new program yet. Remember that uv was newly installed (step 4).
 
 2. **Engine packages** (about 2 to 3 GB the first time; takes several minutes):
-   `UV_PROJECT_ENVIRONMENT="${CLAUDE_PLUGIN_DATA}/venv" uv sync --frozen --project "${CLAUDE_PLUGIN_ROOT}/engine"`
+   `uv run --no-project --python 3.11 "${CLAUDE_PLUGIN_ROOT}/skills/setup/install.py" packages "${CLAUDE_PLUGIN_DATA}"`
 
 3. **ffmpeg and models** (prints each item, its size and progress):
-   - Standard: `UV_PROJECT_ENVIRONMENT="${CLAUDE_PLUGIN_DATA}/venv" uv run --frozen --project "${CLAUDE_PLUGIN_ROOT}/engine" video-audio-engine --warm standard --data "${CLAUDE_PLUGIN_DATA}"`
-   - Full: the same with `--warm full`.
+   - Standard: `uv run --no-project --python 3.11 "${CLAUDE_PLUGIN_ROOT}/skills/setup/install.py" standard "${CLAUDE_PLUGIN_DATA}"`
+   - Full: the same with `full` in place of `standard`.
 
    Steps 2 and 3 can take a long time. Tell the person what is downloading. If you run one in the background, wait for it to finish before the next step, and never end your turn while one is still running: setup is only done when step 3 has printed its JSON check.
 
@@ -58,7 +54,7 @@ Tell the person which mode and its size before starting. Re-running setup is alw
 ## Login browser (only on request)
 
 Pages behind a login open in Edge or Chrome. If check_setup reports `"browser": null` and the person wants to download from such pages, or they ask to "set up the login browser", install Playwright's own Chromium (about 150 MB):
-`UV_PROJECT_ENVIRONMENT="${CLAUDE_PLUGIN_DATA}/venv" uv run --frozen --project "${CLAUDE_PLUGIN_ROOT}/engine" playwright install chromium`
+`uv run --no-project --python 3.11 "${CLAUDE_PLUGIN_ROOT}/skills/setup/install.py" browser "${CLAUDE_PLUGIN_DATA}"`
 
 ## If something fails
 
