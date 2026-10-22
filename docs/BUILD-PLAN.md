@@ -1,7 +1,7 @@
 # Video Audio Agents — Build Plan
 
 **Repo:** https://github.com/madavai/video-audio-agents (public, MIT)
-**Status:** proposal for approval, then the handoff file for the Claude Code build session
+**Status:** Wave 1 is built and released as 1.0.0 (phases 1 to 7). Wave 2 (release 1.1) is next. This file is kept accurate to what was built: where the build changed course, the section says so, and `docs/adr/0001-python-engine-as-plugin.md` explains why.
 **Scope:** the complete product, built in **two waves**. Wave 1 ships as release 1.0, Wave 2 as release 1.1.
 
 ---
@@ -11,7 +11,7 @@
 1. Chaithru approves this plan (or asks for changes).
 2. Clone the empty repo on the PC: `git clone https://github.com/madavai/video-audio-agents.git`
 3. Put this file at `docs/BUILD-PLAN.md`, and copy the two proven apps into `docs/reference/`:
-   `C:\Audio\Transcriber.pyw` and `C:\Audio\Voice Changer.pyw`. They hold the logic to port (download, naming, cutting long audio, voice sample selection, speed control). Delete `docs/reference/` after 1.0 ships.
+   `C:\Audio\Transcriber.pyw` and `C:\Audio\Voice Changer.pyw`. They hold the logic to port (download, naming, cutting long audio, voice sample selection, speed control). Delete `docs/reference/` after 1.0 ships. (Done: removed in the 1.0.0 release; they remain in the git history.)
 4. Open Claude Code in the repo and say: **"Build Phase 1 from docs/BUILD-PLAN.md."** Then Phase 2, and so on. Each phase ends with its tests green and a pull request for review.
 
 Rules for the build session are in §14 (proposed `CLAUDE.md`).
@@ -53,7 +53,7 @@ Every link can give any mix of **video (.mp4)**, **audio (.mp3)**, **transcript 
 | Setup | **uv** creates a private Python and installs pinned versions | Nobody installs Python; locked versions behave the same on every PC. |
 | Models and binaries | **Never in the repo.** Downloaded by the setup skill or on first use into the plugin's private folder (§8) | GitHub can't hold multi-GB files, and clones must stay small. |
 | Where files go | `~/Documents/VideoAudioAgents/<title>/…` (one folder per link); voices in `~/Documents/VideoAudioAgents/voices/` | One place per video for all its outputs; visible; a call can name another folder. |
-| Private state | `${CLAUDE_PLUGIN_DATA}` → `~/.claude/plugins/data/video-audio-agents/` | Models, browser login profile, logs. Survives updates; never in the repo. |
+| Private state | `${CLAUDE_PLUGIN_DATA}` → `~/.claude/plugins/data/video-audio-agents-madavai/` (Claude Code names it `<plugin>-<marketplace>`; `--plugin-dir` uses `video-audio-agents-inline`) | The engine's Python environment (`venv`), ffmpeg, models, browser login profile, logs. Survives updates; never in the repo. |
 | Code style | Simple. No frameworks beyond the MCP SDK. No abstractions for one-time use. | Owner's standing rule. |
 
 ---
@@ -86,16 +86,16 @@ video-audio-agents/                  # the repository = the marketplace
 │               ├── server.py        # tool definitions only; each a few lines calling a module below
 │               ├── paths.py         # output folders, free-name helper, data folder
 │               ├── progress.py      # percent + message → MCP progress notification
-│               ├── models.py        # which models exist, where they live, download with progress
-│               ├── media.py         # fetch_media, list_links (yt-dlp)
+│               ├── models.py        # which models exist (pinned revision, exact file sizes), where they live, download with progress and resume; ffmpeg
+│               ├── media.py         # fetch_media (yt-dlp); (Wave 2) list_links
 │               ├── browser.py       # login pages: open in Edge/Chrome, catch the stream, export cookies
-│               ├── transcribe.py    # faster-whisper; .txt + .segments.json
-│               ├── subtitles.py     # .srt/.vtt from segments; burn-in
-│               ├── clips.py         # cut, vertical crop, merge audio into video
-│               ├── audio.py         # loudness, silence trim, music mix, podcast export
-│               ├── texts.py         # save_text (translations, summaries, posts), search_texts
+│               ├── transcribe.py    # faster-whisper; sentence lines from word timings; .txt + .segments.json
+│               ├── subtitles.py     # .srt/.vtt from segments; reading them back for burn-in
+│               ├── clips.py         # cut (with burned-in captions), merge audio into video; (Wave 2) vertical crop
+│               ├── audio.py         # (Wave 2) loudness, silence trim, music mix, podcast export
+│               ├── texts.py         # save_text (translations, summaries, posts, length limits), translated_segments; (Wave 2) search_texts
 │               ├── voices.py        # save_voice, record_voice, list_voices, best-10-seconds sample
-│               ├── speech.py        # speak, speak_timed, change_voice, tempo, pronunciation list
+│               ├── speech.py        # speak, speak_timed, change_voice, tempo; (Wave 2) pronunciation list
 │               ├── speakers.py      # (Wave 2) who-said-what labels
 │               └── setup_check.py   # check_setup
 ├── tests/                           # the engine's tests (settings in pytest.ini)
@@ -106,8 +106,7 @@ video-audio-agents/                  # the repository = the marketplace
 ├── docs/
 │   ├── BUILD-PLAN.md                # this file
 │   ├── USER-GUIDE.md                # plain English: install, first use, examples, troubleshooting
-│   ├── adr/0001-python-engine-as-plugin.md
-│   └── reference/                   # (temporary) the two proven .pyw apps to port from
+│   └── adr/0001-python-engine-as-plugin.md   # why a Python engine in a plugin, and what changed during the build
 ├── .github/workflows/ci.yml         # tests on windows-latest and ubuntu-latest
 ├── CLAUDE.md                        # rules for Claude Code in this repo (§14)
 ├── README.md                        # one-sentence install first, then examples and limits
@@ -153,21 +152,22 @@ Every tool:
 
 | Tool | Inputs | Output | Behaviour |
 |---|---|---|---|
-| `check_setup()` | — | `{ok, python, ffmpeg, deno, browser, models_present, models_missing_gb, free_ram_gb, free_disk_gb, gpu, notes}` | Fast, no downloads. Agents call it before heavy work and quote `models_missing_gb` when warning about a download. |
-| `fetch_media(url, save, folder?)` | `save` ∈ audio / video / both | `{title, folder, files}` | yt-dlp `extract_info` first; if it fails, browser fallback (§6). audio → `bestaudio` + mp3; video → `bestvideo+bestaudio` merged mp4; both → keep both. `--no-playlist`. Creates `~/Documents/VideoAudioAgents/<title>/`. Progress from yt-dlp hooks. |
-| `transcribe(file, accuracy, timestamps, delete_audio_after)` | accuracy ∈ fast / balanced / accurate (base / small / large-v3-turbo) | `{transcript_file, segments_file, language, lines, duration_seconds}` | `WhisperModel(..., device="cpu", compute_type="int8", cpu_threads=max(4, cores//2), download_root=DATA/models)` in `BatchedInferencePipeline`, `batch_size=8`. Writes `.txt` (timestamps `[12.5s] text` or paragraphs) **and** `.segments.json` (start, end, text) used by subtitles, clips and dubbing. Model cached per process. |
-| `make_subtitles(segments_file, format, max_chars?)` | format ∈ srt / vtt | `{subtitle_file}` | Lines ≤ 42 chars, ≤ 2 lines, ≤ 6 s each. Works on translated segments too. |
-| `cut_clip(video_file, start, end, subtitle_file?)` | times `mm:ss` or seconds | `{clip_file}` | ffmpeg stream copy when no subtitles; re-encode with burned-in subtitles when given. |
+| `check_setup()` | — | `{ok, python, ffmpeg, deno, browser, models_present, models_missing_gb, free_ram_gb, free_disk_gb, gpu, output_folder, notes}` | Fast, no downloads. Agents call it before heavy work and quote `models_missing_gb` when warning about a download. |
+| `fetch_media(url, save, folder?)` | `save` ∈ audio / video / both | `{title, folder, files, used_browser}` | yt-dlp `extract_info` first; if it fails, browser fallback (§6). audio → `bestaudio` + mp3; video → `bestvideo+bestaudio` merged mp4 (mp4/h264 preferred; other formats converted to mp4); both → keep both. `--no-playlist`. Creates `~/Documents/VideoAudioAgents/<title>/` (or `<folder>/<title>/`). Progress from yt-dlp hooks. Names itself to Wikimedia sites, which refuse programs posing as a browser. |
+| `transcribe(file, accuracy, timestamps, delete_audio_after)` | accuracy ∈ fast / balanced / accurate (base / small / large-v3-turbo) | `{transcript_file, segments_file, language, lines, duration_seconds}` | `WhisperModel(<models folder>, device="cpu", compute_type="int8", cpu_threads=4)` in `BatchedInferencePipeline`, `batch_size=8`, `word_timestamps=True`. Lines are built from the word timings: a new line after a sentence end (once a second long), at a pause over 1 s, or before 12 s. **Changed in the build:** the plan had `cpu_threads=max(4, cores//2)` (12 threads crashed on a 24-core PC with a 40-minute lesson; 4 were as fast) and one line per segment (batched segment timings dropped words at chunk edges). Writes `.txt` (timestamps `[12.5s] text` or paragraphs) **and** `.segments.json` (start, end, text) used by subtitles, clips and dubbing, only when finished. Model cached per process. |
+| `make_subtitles(segments_file, format, max_chars?)` | format ∈ srt / vtt | `{subtitle_file, cues}` | Lines ≤ 42 chars, ≤ 2 lines, ≤ 6 s each. Works on translated segments too. |
+| `cut_clip(video_file, start, end, subtitle_file?)` | times `mm:ss` or seconds | `{clip_file}` | ffmpeg stream copy of picture and sound only (`-map 0:v? -map 0:a?`, so a timecode track can't break it) when no subtitles; re-encode with burned-in subtitles when given. |
 | `merge_audio_video(video_file, audio_file)` | | `{output_file}` | Replaces the video's audio track (dubbing). Pads or trims to the video length. |
-| `save_text(next_to, label, text, ext, append_to?)` | ext ∈ txt / md / srt / json | `{file}` | Saves `name (label).ext` beside `next_to`, or appends. Used for translations, summaries, chapters, posts, glossary. |
-| `list_voices()` | — | `{voices}` | From the voices folder. |
-| `save_voice(source_file, name, consent)` | consent must be true | `{voice, sample_file}` | Trims silence, keeps ≤ 30 s. Refuses without consent. |
-| `record_voice(name, seconds, consent)` | 10–30 s | `{voice, sample_file}` | Records the default microphone (`sounddevice`); refuses < 10 s of audio. |
-| `speak(text?, transcript_file?, voice, language, speed, output_name?)` | language ∈ English / Kannada / Hindi / French / Spanish / Tamil; speed ∈ little_slower (0.9, default) / slower (0.8) / as_made (1.0) | `{output_file, seconds}` | Timestamps stripped. English → Chatterbox TTS; Hindi/French/Spanish → Chatterbox Multilingual; Kannada/Tamil → edge-tts reader (male/female by pitch of the sample) then `change_voice`. Sentence pieces ≤ 300 chars, 0.4 s pause. Tempo via ffmpeg `atempo`. |
-| `speak_timed(segments_file, voice, language, speed)` | translated segments | `{output_file, overruns}` | **Dubbing:** speaks each segment and places it at the segment's start time so the new audio lines up with the video; speeds a piece up slightly (≤ 1.15×) when it would overrun, and reports the rest. |
-| `change_voice(file, voice, speed)` | | `{output_file, seconds}` | Chatterbox VC in pieces ≤ 20 s cut at quiet moments; silence kept as silence. |
+| `save_text(next_to, label, text, ext, append_to?)` | ext ∈ txt / md / srt / json | `{file}` | Saves `name (label).ext` beside `next_to`, or appends. Used for translations, summaries, chapters, posts, glossary (empty label = `next_to`'s own name). Refuses label `titles` over 60 characters a line and `x-thread` over 280 a post (X's counting), naming the piece. |
+| `translated_segments(segments_file, translated_file)` | a translated `[12.5s] text` transcript | `{segments_file, lines}` | **Added in the build** (planned: the translator writes the segments JSON itself). Pairs each translated line with the original segment by its time, saves `<translated name>.segments.json` with the original timings, and refuses an incomplete translation, naming the missing lines. |
+| `list_voices()` | — | `{voices, folder}` | From the voices folder. |
+| `save_voice(source_file, name, consent)` | consent must be true | `{voice, sample_file, seconds}` | The clearest 30 s of speech in the file's first 10 minutes, without the silence around it; needs ≥ 10 s. Refuses without consent. |
+| `record_voice(name, seconds, consent)` | 10–30 s (default 20) | `{voice, sample_file, seconds}` | Records the default microphone (`sounddevice`); waits up to a minute for the person to start speaking; refuses < 10 s of audio. |
+| `speak(voice, language, text?, transcript_file?, speed, output_name?, folder?)` | language ∈ English / Kannada / Hindi / French / Spanish / Tamil; speed ∈ little_slower (0.9, default) / slower (0.8) / as_made (1.0) | `{output_file, seconds}` | Timestamps stripped. English → Chatterbox TTS; Hindi/French/Spanish → Chatterbox Multilingual; Kannada/Tamil → edge-tts reader (male/female by pitch of the sample) then `change_voice`. Sentence pieces ≤ 300 chars, 0.4 s pause. Tempo via ffmpeg `atempo`. Typed text goes to `folder` or `Documents/VideoAudioAgents/Speech/`. |
+| `speak_timed(segments_file, voice, language, speed)` | translated segments | `{output_file, seconds, lines, overruns, overrun_count}` | **Dubbing:** speaks each segment and places it at the segment's start time so the new audio lines up with the video; speeds a piece up slightly (≤ 1.15×) when it would overrun, and reports the rest. Added in the build: a line under 40 characters is spoken together with the next one (within 1.5 s), because the multilingual model garbles short lines; faint tails after the words are trimmed; lines without words stay silent. |
+| `change_voice(file, voice, speed)` | speed default as_made | `{output_file, seconds}` | Chatterbox VC in pieces ≤ 20 s cut at quiet moments; silence kept as silence. |
 
-Shared rules in `speech.py`: one big model in memory at a time (voice / english / multilingual), freed before loading another; best 10 seconds of a saved voice chosen by loudness window, normalised to 0.9 peak.
+Shared rules: one big model in memory at a time (speech-to-text, voice, english, multilingual share `models.loaded`), freed before loading another, and one big-model job at a time (a second waits); best 10 seconds of a saved voice chosen by loudness window, normalised to 0.9 peak. Models load from their own folders (`from_local`), and libraries are kept from downloading on their own (the multilingual tokenizer's Chinese converter is switched off).
 
 ### Wave 2 tools
 
@@ -204,7 +204,7 @@ Shared rules in `speech.py`: one big model in memory at a time (voice / english 
 ```json
 {
   "name": "video-audio-agents",
-  "version": "0.5.0",
+  "version": "1.0.0",
   "description": "Download, transcribe, translate, dub, voice and publish: four agents for video and audio links.",
   "author": { "name": "Madav", "url": "https://github.com/madavai" },
   "homepage": "https://github.com/madavai/video-audio-agents",
@@ -259,7 +259,8 @@ Nothing large is in the repo. The repo is code only (a few hundred KB). Everythi
 |---|---|---|---|
 | `uv` | ~15 MB | astral.sh installer | Setup, if missing |
 | Python 3.11 (private copy) | ~30 MB | uv's managed Python | Setup, if missing |
-| Packages incl. PyTorch CPU | ~2–3 GB | PyPI (pinned by `uv.lock`); ffmpeg and Deno come as PyPI packages too | Setup |
+| Packages incl. PyTorch CPU | ~2–3 GB | PyPI (pinned by `uv.lock`); Deno comes as a PyPI package too | Setup |
+| ffmpeg and ffprobe | ~0.1 GB | the static build `static-ffmpeg` points to, downloaded by `models.py` into `<data>/bin/` | Setup |
 | Speech models `base`, `small` | ~150 MB + ~500 MB | Hugging Face (faster-whisper) | Setup |
 | Speech model `large-v3-turbo` | ~1.6 GB | Hugging Face | First "accurate" job, or full setup |
 | Chatterbox voice conversion | ~1 GB | Hugging Face (`ResembleAI/chatterbox`) | First voice job, or full setup |
@@ -268,32 +269,43 @@ Nothing large is in the repo. The repo is code only (a few hundred KB). Everythi
 | Playwright Chromium | ~150 MB | Playwright | Only if no Edge/Chrome, on request |
 | Wave 2: CUDA torch, pyannote, IndicF5 | 2–4 GB | PyPI / Hugging Face | `--gpu`, `--speakers`, `--indic` on request |
 
-All model downloads go through `models.py`, one function: knows each model's name, size and location, downloads with progress into `${CLAUDE_PLUGIN_DATA}/models` (`HF_HOME` is pointed there so Chatterbox and faster-whisper share it), verifies the file exists and is complete before use, and resumes a broken download.
+All model downloads go through `models.py`: it knows each model's Hugging Face repository at a pinned revision and every file with its exact size, downloads each file directly from that revision with progress into `${CLAUDE_PLUGIN_DATA}/models/<repo name>/` (a `.part` file, renamed only when complete), counts a file as present only at its exact size, and resumes a broken download. The libraries load from those folders (`WhisperModel(<folder>)`, Chatterbox `from_local`) and never download on their own. **Changed in the build:** the plan let the libraries download through `huggingface-hub` with `HF_HOME` pointed at the data folder; that gave no progress, no pinned versions and no exact "GB missing" (ADR 0001).
 
 ### Setup skill (`skills/setup/SKILL.md`)
 
-Frontmatter `allowed-tools: Bash(uv:*), Bash(powershell:*), Bash(curl:*)`; uses `${CLAUDE_PLUGIN_ROOT}` to find the engine. Two modes:
+Frontmatter `allowed-tools`: `Bash(uv *)`, `Bash(~/.local/bin/uv *)`, `Bash(powershell *)`, `Bash(curl *)`, `PowerShell(uv *)`, `PowerShell(~/.local/bin/uv *)` and the engine's `check_setup`; uses `${CLAUDE_PLUGIN_ROOT}` to find the engine. (In `claude -p` a skill's `allowed-tools` don't apply; interactively they do.) Two modes:
 
 - **Standard** ("set up video audio agents"): steps 1–4 below. About 3 GB. Enough for download, transcripts, subtitles, translation and posts.
 - **Full** ("set up video audio agents with voice"): also pre-downloads the three Chatterbox models and `large-v3-turbo`. About 10 GB. Voice then works immediately with no wait on first use.
 
 1. `uv --version`; if missing: Windows `powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"`, macOS `curl -LsSf https://astral.sh/uv/install.sh | sh`.
 2. `uv sync --frozen --project <plugin>/engine` with `UV_PROJECT_ENVIRONMENT=<data>/venv`, the environment the server uses. Steps 2 and 3 run through the skill's `install.py <step> <data>` (standard library only, started with `uv run --no-project`), which sets that variable, so the commands are plain `uv` commands in Bash and PowerShell alike.
-3. `uv run --project <plugin>/engine video-audio-engine --warm standard|full` (downloads the models for the chosen mode, printing each name, size and progress).
+3. `install.py standard|full <data>`, which runs `video-audio-engine --warm standard|full --data <data>` in that environment (downloads ffmpeg and the models for the chosen mode, printing each name, size and progress, then a JSON check).
 4. States what was installed and the sizes, where files are saved, and reloads so `/mcp` shows `engine` connected.
 5. On any failure: the exact error in plain words and the log path. Re-running setup is always safe; it skips what exists.
 
 Wave 2 adds `--gpu` (CUDA torch), `--speakers` (Hugging Face token) and `--indic` (IndicF5) options.
 
-Updates: GitHub marketplaces don't auto-update by default. README: "say *update video audio agents*" (Claude runs `claude plugin marketplace update madavai`, then setup again, which only installs what changed) or turn on auto-update under `/plugin` → Marketplaces.
+Updates: GitHub marketplaces don't auto-update by default. README: "say *update video audio agents*" (Claude runs `claude plugin marketplace update madavai`, then `claude plugin update video-audio-agents@madavai`, then setup again, which only installs what changed) or turn on auto-update under `/plugin` → Marketplaces.
 
-Phase 1 confirms in MadavCC that Madav's chat (Agent SDK) sees plugins installed in the user's Claude folder; if it must be told, that is one setting in Madav, invisible to users.
+Phase 1 confirms in MadavCC that Madav's chat (Agent SDK) sees plugins installed in the user's Claude folder; if it must be told, that is one setting in Madav, invisible to users. **Status at 1.0:** not done. A first look at an older Madav app found it doesn't load the person's plugins by design; the check is parked until the owner tries everything in the current Madav after the build.
+
+**Found at release (1.0 checklist):** the engine always fails to start once, in the first session after install, because its environment is still being built and that takes longer than Claude Code's MCP start limit. Claude Code then skips the server for 15 minutes ("recent failure cached"), so a restart soon after setup can still show `engine` as not connected. The setup's closing message and the user guide say what to do (`/mcp` → Reconnect, or wait 15 minutes and restart). Starting cleanly in that first session is a follow-up.
 
 ---
 
 ## 9. The agents (full text to ship; Wave 2 sections are added in Wave 2)
 
 Common frontmatter: `model: inherit`, `tools: Read, mcp__plugin_video-audio-agents_engine__*`. Never `mcpServers`, `hooks` or `permissionMode`.
+
+**As built (1.0):** the shipped files in `plugins/video-audio-agents/agents/` are the source of truth; the texts below are the plan they grew from. What changed, and why:
+- Every description says "Use proactively ...": without it, the main chat called the engine (or translated) itself instead of handing the work to the agent.
+- A subagent never hears the person. The voice agent therefore accepts the permission to save a voice when the main chat's request reports the person's own words; otherwise it returns the question for the main chat to ask, and saves nothing.
+- The transcriber also takes recordings already on the computer and a folder to save into, saves `both` for dubbing, and explains keyframe-accurate clips.
+- The translator writes `[12.5s] text` lines and checks them with `translated_segments` (instead of writing the segments JSON), keeps a glossary in `<output_folder>/glossary.md`, and translates from the segments file when the transcript has no timestamps.
+- The voice agent picks the voice with `list_voices`, warns about time (5–8 s of work per second of speech) and the 4-hour limit, and merges a changed voice under a video.
+- The publisher reads the chapters and summary if present, writes plain text (no Markdown), and re-saves the whole text when `save_text` refuses a title or post as too long.
+- Handing over: transcriber → translator → voice for dubbing, each with the file paths.
 
 ### `agents/transcriber.md`
 
@@ -451,19 +463,21 @@ List the files. Say they are drafts to review before posting.
 | `mcp` | MCP server (`from mcp.server.mcpserver import MCPServer`) | `>=2.3,<3` — 2.x renamed FastMCP → MCPServer; do not follow 1.x examples |
 | `yt-dlp[default]` | downloads; `[default]` brings `yt-dlp-ejs` | latest at lock time, refreshed each release |
 | `deno` | JS runtime yt-dlp needs for YouTube (PyPI package ships the binary) | latest |
-| `static-ffmpeg` | ffmpeg/ffprobe binaries; engine adds them to PATH and passes `ffmpeg_location` | latest |
+| `static-ffmpeg` | where to get ffmpeg/ffprobe for this computer; `models.py` downloads them into `<data>/bin/`, the engine adds them to PATH and passes `ffmpeg_location` | latest |
 | `faster-whisper` | speech-to-text | `>=1.2,<2` |
-| `huggingface-hub` | model downloads with resume (used by `models.py`) | as pulled by faster-whisper/chatterbox |
+| `huggingface-hub` | not used directly: `models.py` downloads pinned files itself (§8); it comes in only as a dependency of faster-whisper and chatterbox | as pulled |
 | `playwright` | browser fallback | `>=1.63,<2` |
 | `chatterbox-tts` | voice cloning, TTS, voice conversion | `0.1.7` (pins torch 2.6.0) |
-| `torch`, `torchaudio` | via chatterbox; CPU wheels from the PyTorch CPU index on Windows/Linux (`[tool.uv.sources]`); CUDA wheels as a Wave 2 extra | as chatterbox pins |
+| `torch`, `torchaudio` | via chatterbox; CPU wheels from the PyTorch CPU index on Windows/Linux (`[tool.uv.sources]`); CUDA wheels as a Wave 2 extra | `2.6.0` |
 | `edge-tts` | Kannada/Tamil reader voices (online) | `>=7,<8` |
-| `sounddevice`, `soundfile`, `librosa`, `numpy` | recording, audio I/O, analysis | compatible with chatterbox's pins |
-| `mutagen` | mp3 tags and chapters (Wave 2) | latest |
-| `pyannote.audio` | speaker labels (Wave 2, optional extra) | latest |
+| `sounddevice`, `soundfile`, `librosa`, `numpy` | recording, audio I/O, analysis | compatible with chatterbox's pins (`librosa==0.11.0`, `numpy<2`) |
+| `psutil` | free memory for `check_setup` (added in the build) | `>=6` |
+| `setuptools` | `pkg_resources`, without which Chatterbox's watermark (Perth) fails to load and no Chatterbox model can be made (added in the build) | `>=75,<81` |
+| `mutagen` | mp3 tags and chapters (Wave 2; not added yet) | latest |
+| `pyannote.audio` | speaker labels (Wave 2, optional extra; not added yet) | latest |
 | dev: `pytest`, `jiwer` | tests, word-error-rate | — |
 
-Python `3.11` (`.python-version`). Entry point `[project.scripts] video-audio-engine = "video_audio_engine.server:main"` with `--warm standard|full`, `--check`, `--gpu`, `--speakers`, `--indic` flags for the setup skill.
+Python `3.11` (`.python-version`). Entry point `[project.scripts] video-audio-engine = "video_audio_engine.server:main"` with `--warm standard|full`, `--check` and `--data <folder>` for the setup skill; `--gpu`, `--speakers` and `--indic` come with Wave 2. yt-dlp was refreshed for 1.0.0 (2026.10.21).
 
 ---
 
@@ -474,7 +488,8 @@ Python `3.11` (`.python-version`). Entry point `[project.scripts] video-audio-en
 
 ### Integration (CPU, tiny models, local HTTP server with media generated by ffmpeg at test time)
 - fetch_media: direct mp3, direct mp4, HLS stream, same link twice → `(2)`, page without media → clear error, cancel midway → no partial files.
-- transcribe: mp3 and mp4 with the `tiny` model on the bundled 10-second public-domain speech WAV → expected words present, both formats, `.segments.json` written, `(2)` on repeat, `delete_audio_after`.
+- transcribe: mp3 and mp4 with the `base` ("fast") model on the bundled 10-second public-domain speech WAV → expected words present, both formats, `.segments.json` written, `(2)` on repeat, `delete_audio_after`.
+- Voice tools in CI run against a stand-in model (`tests/integration/test_speech.py`), so CI never downloads the multi-GB voice models.
 - make_subtitles → valid .srt (timing monotonic, ≤ 42 chars/line); cut_clip with and without burn-in → duration ≈ requested; merge_audio_video → video length kept.
 - save_text: create then append.
 - models.py: a missing model is downloaded with progress and resumed after an interrupted download (simulated with a local server).
@@ -482,10 +497,10 @@ Python `3.11` (`.python-version`). Entry point `[project.scripts] video-audio-en
 - Wave 2: list_links on a generated local "playlist" page; clean_audio loudness within ±1 LU; crop_vertical → 1080×1920; export_podcast tags readable.
 
 ### Slow (local only, models present): `pytest -m slow`
-save_voice, speak English one sentence, change_voice 10-second clip → output length ≈ input and speaker similarity ≥ 0.85 (Chatterbox voice encoder); speak_timed on 3 segments → each starts within 0.2 s of its time.
+save_voice, speak English one sentence, change_voice 10-second clip → output length ≈ input and speaker similarity ≥ 0.85 (Chatterbox voice encoder); speak_timed on 3 segments → each starts within 0.2 s of its time; Kannada through the reader voice; one big model in memory at a time. They need the Chatterbox files in `.test-data/models/chatterbox/`.
 
 ### CI (`.github/workflows/ci.yml`)
-`windows-latest` and `ubuntu-latest`: install uv → `uv sync --frozen` → unit + integration (not `slow`). Cache the `tiny` model.
+`windows-latest` and `ubuntu-latest`: install uv → `uv sync --frozen --project plugins/video-audio-agents/engine` → check the two manifests are valid JSON → unit + integration (not `slow`), run from the repo root. `.test-data/` (ffmpeg and the `base` model) is cached between runs.
 
 ### Manual checklist (Chaithru, with screenshots)
 
@@ -512,13 +527,15 @@ Wave 2:
 
 | Phase | Builds | Done when |
 |---|---|---|
-| **1. Skeleton** | Repo structure, `plugin.json`, `marketplace.json`, `.mcp.json`, `pyproject` + `uv.lock`, `server.py` with `check_setup`, `models.py`, setup skill (standard/full), CI, README with the one-sentence install, CLAUDE.md; Madav SDK plugin check | One-sentence install works on Chaithru's PC; `/mcp` shows `engine`; `uv` launches on Windows; full setup downloads the models with progress |
+| **1. Skeleton** | Repo structure, `plugin.json`, `marketplace.json`, `.mcp.json` (later replaced by `mcpServers` in `plugin.json`, §7), `pyproject` + `uv.lock`, `server.py` with `check_setup`, `models.py`, setup skill (standard/full), CI, README with the one-sentence install, CLAUDE.md; Madav SDK plugin check (parked, §8) | One-sentence install works on Chaithru's PC; `/mcp` shows `engine`; `uv` launches on Windows; full setup downloads the models with progress |
 | **2. Transcriber core** | `media.py`, `browser.py`, `transcribe.py`, `texts.py`, `transcriber.md` (download, transcript, notes) | Checklist 2, 3, 9, 10 |
 | **3. Subtitles & clips** | `subtitles.py`, `clips.py` (cut, burn-in, merge) | Checklist 7; subtitles on item 2 |
 | **4. Translator** | `translator.md`, translated subtitles, glossary | Checklist 4; a 1-hour transcript translates in parts without loss |
 | **5. Voice & dubbing** | `voices.py`, `speech.py` (speak, speak_timed, change_voice), `voice.md`, slow tests | Checklist 5, 6; one model in memory at a time |
 | **6. Publisher** | `publisher.md`, tests for limits | Checklist 8 |
 | **7. Release 1.0** | USER-GUIDE, README final, CHANGELOG, ADR 0001, tag `v1.0.0`; fresh-PC install by one other person | Both installs work on a PC that never had Python |
+
+How Wave 1 went: phases 1 to 4 and 6 were merged as 0.5.0 (with the packaging change of §3), phase 5 as 0.6.0, and the release PR raised the version to 1.0.0, removed `docs/reference/` and brought this plan in line with the build. The owner tags `v1.0.0` after merging; the fresh-PC install and the checklist items that need the owner (3, 5 and 6 with their own voice, 9, the Madav repeat of 1) are listed in that PR.
 
 ### Wave 2 → release 1.1
 
@@ -552,6 +569,8 @@ Wave 2:
 
 ## 14. Proposed `CLAUDE.md` for the repo (shown for approval before it is written)
 
+The repo's own `CLAUDE.md` grew from this proposal and is the one in force: it adds how the repo and the engine are put together, the test switches, the version rule (each phase raises the middle number; 1.0.0 is the release) and the test command from the repo root (`uv run --project plugins/video-audio-agents/engine pytest`).
+
 ```markdown
 # video-audio-agents
 
@@ -575,6 +594,8 @@ Four Claude Code agents (transcriber, translator, voice, publisher), one setup s
 ---
 
 ## 15. Open questions for Chaithru
+
+As built: the four names were kept, 1.0 is Windows first with Mac in 1.1, the default folder is used (the real Documents folder, also when Windows moved it into OneDrive), and the build sessions opened their pull requests on `madavai/video-audio-agents`.
 
 1. Agent names `transcriber`, `translator`, `voice`, `publisher`: fine, or Madav-style names?
 2. Windows only for 1.0, with Mac verified in 1.1 (as planned), or Mac in 1.0 too (needs a Mac to test)?

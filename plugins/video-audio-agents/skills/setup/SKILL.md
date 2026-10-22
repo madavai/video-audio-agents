@@ -48,7 +48,7 @@ Tell the person which mode and its size before starting. Re-running setup is alw
    - "Setup complete", the mode, and roughly how much was downloaded;
    - where their files will be saved (`output_folder` from the check);
    - anything in `notes` (for example, no Edge or Chrome found);
-   - next: "Restart Claude Code (close it and open it again) so the engine starts. Then type /mcp: `engine` should show as connected." If uv was newly installed in step 1, the restart is required.
+   - next: "Restart Claude Code (close it and open it again) so the engine starts. Then type /mcp: `engine` should show as connected. If it shows as failed, choose it and pick Reconnect; if that doesn't help, wait 15 minutes and restart again." (The engine couldn't start while setup was installing it, and Claude Code can skip a server that failed for up to 15 minutes.) If uv was newly installed in step 1, the restart is required.
    - something to try: "Paste a YouTube link and ask for the video and a transcript."
 
 ## Login browser (only on request)

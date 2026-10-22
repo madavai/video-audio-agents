@@ -6,7 +6,7 @@ license = "MIT"
 requires-python = "==3.11.*"
 dependencies = [
     "mcp>=2.3,<3",
-    "yt-dlp[default]>=2026.8.19",
+    "yt-dlp[default]>=2026.10.21",
     "deno>=2.9",
     "static-ffmpeg>=3.0",
     "faster-whisper>=1.2,<2",
