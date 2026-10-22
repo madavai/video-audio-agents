@@ -161,8 +161,8 @@ sound less like it.
 **Speed:** the voice models talk a little fast, so speech is made "a little slower" by default. Say "slower" for
 learners, or "as made".
 
-**Dubbing:** Claude downloads the video, makes a transcript, translates it, speaks each translated sentence in the
-saved voice at the moment the original sentence started, and puts the new sound under the video:
+**Dubbing:** Claude downloads the video, makes a transcript, translates it (checked line by line, as for any
+translation), speaks each translated sentence in the saved voice at the moment the original sentence started, and puts the new sound under the video:
 `<title> (Hindi) (<voice> voice).mp4`. A sentence that is longer in the new language is sped up slightly (at most
 15%) to fit; if one still runs over, Claude tells you where. Very short sentences are spoken together with the next
 one, which sounds more natural.

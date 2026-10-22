@@ -15,6 +15,7 @@ Release 1.0 (Phase 7): Wave 1 is complete. Paste a link, or point at a recording
 
 ### Fixes
 - After the very first setup, a restart could still show the engine as not connected: the engine can't start while the setup is installing it, and Claude Code then leaves a server that failed switched off for up to 15 minutes (found while testing the release from GitHub). The setup's closing message and the user guide now say what to do: in `/mcp`, choose `engine` and pick Reconnect, or wait 15 minutes and restart.
+- Dubbing could skip the check that no translated line is lost: asked to translate a timing file (`.segments.json`), the translator wrote the translated timing file itself instead of letting `translated_segments` build and check it (found dubbing a NASA video into Hindi; no line was lost that time). The translator now always translates the timestamped transcript next to it and lets `translated_segments` check it, which also keeps the times exactly as the engine wrote them.
 
 ## 0.6.0
 

@@ -302,7 +302,7 @@ Common frontmatter: `model: inherit`, `tools: Read, mcp__plugin_video-audio-agen
 - Every description says "Use proactively ...": without it, the main chat called the engine (or translated) itself instead of handing the work to the agent.
 - A subagent never hears the person. The voice agent therefore accepts the permission to save a voice when the main chat's request reports the person's own words; otherwise it returns the question for the main chat to ask, and saves nothing.
 - The transcriber also takes recordings already on the computer and a folder to save into, saves `both` for dubbing, and explains keyframe-accurate clips.
-- The translator writes `[12.5s] text` lines and checks them with `translated_segments` (instead of writing the segments JSON), keeps a glossary in `<output_folder>/glossary.md`, and translates from the segments file when the transcript has no timestamps.
+- The translator writes `[12.5s] text` lines and checks them with `translated_segments` (instead of writing the segments JSON, also when handed a `.segments.json`: it then translates the timestamped transcript beside it, whose times match the engine's), keeps a glossary in `<output_folder>/glossary.md`, and translates from the segments file when the transcript has no timestamps.
 - The voice agent picks the voice with `list_voices`, warns about time (5–8 s of work per second of speech) and the 4-hour limit, and merges a changed voice under a video.
 - The publisher reads the chapters and summary if present, writes plain text (no Markdown), and re-saves the whole text when `save_text` refuses a title or post as too long.
 - Handing over: transcriber → translator → voice for dubbing, each with the file paths.

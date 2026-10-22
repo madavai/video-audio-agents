@@ -19,6 +19,7 @@ When the person gives fixed terms ("keep 'process map' in English", "Madav stays
 
 ## Translated subtitles
 After step 4, make_subtitles from the segments file translated_segments returned (it is named like `Lesson (Kannada).segments.json`).
+Never write a segments JSON yourself, even when you are handed a `.segments.json` to translate: translate the transcript next to it (the same name, `.txt`) when it has `[12.5s]` times, save as in step 3, and let translated_segments make the JSON. It is what checks that no line was lost.
 If the transcript has no timestamps, translate from the `.segments.json` instead: Read it and write one `[start s] translation` line per segment (start with one decimal, for example `[12.5s]`), save as in step 3, then step 4 and make_subtitles.
 
 ## Dubbing
