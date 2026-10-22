@@ -70,6 +70,42 @@ Long transcripts are translated in parts and then checked line by line against t
 
 **Glossary:** names and terms you want kept a certain way are saved in `Documents/VideoAudioAgents/glossary.md` and used in every translation. You can also edit that file yourself: one term per line, like `process map → keep in English`.
 
+## Voice and dubbing
+
+> Save my voice from this recording: C:\Users\me\Desktop\me.m4a
+>
+> Record my voice.
+>
+> Read the summary aloud in my voice.
+>
+> Say "Welcome to the course" in Kannada in my voice.
+>
+> Dub this video into Hindi in my voice: https://...
+>
+> Change the voice in this recording to Anna's.
+
+**Permission first:** a voice is only saved when it is yours, or the person agreed. Claude asks before saving one.
+
+**Saving a voice:** give a recording of one person speaking (audio or video, 20 to 30 seconds of natural speech is best), or say "record my voice": reply "ready" when asked and start reading anything aloud; recording starts when you start speaking and lasts 20 seconds. For the closest match: a quiet room, the microphone close, in the language you will mostly use. Voices are kept in `Documents/VideoAudioAgents/voices/` (one `.wav` per voice, at most 30 seconds).
+
+**Languages:** English, Hindi, French and Spanish are spoken directly in the saved voice. Kannada and Tamil are first read by a Microsoft reader voice (this needs the internet) and then changed into the saved voice, so they sound less like it.
+
+**Speed:** the voice models talk a little fast, so speech is made "a little slower" by default. Say "slower" for learners, or "as made".
+
+**Dubbing:** Claude downloads the video, makes a transcript, translates it, speaks each translated sentence in the saved voice at the moment the original sentence started, and puts the new sound under the video: `<title> (Hindi) (<voice> voice).mp4`. A sentence that is longer in the new language is sped up slightly (at most 15%) to fit; if one still runs over, Claude tells you where. Very short sentences are spoken together with the next one, which sounds more natural.
+
+What you get:
+
+| You ask for | File |
+|---|---|
+| reading aloud | `<name> (<voice> voice).mp3` next to the file read; for text you typed, `<its first words> (<voice> voice).mp3` in `Documents/VideoAudioAgents/Speech/` (or a folder you name) |
+| dubbing | `<title> (<language>) (<voice> voice).mp3` and the same name `.mp4` |
+| a changed voice | `<name> (<voice> voice).mp3` next to the original |
+
+**It is slow:** about 5 to 8 seconds of work per second of speech on an ordinary computer (dubbing a 2-minute clip takes about 10 to 15 minutes), and it needs about 6 GB of free memory. Esc stops it at any time. One job can run for at most 4 hours, so dub or read at most about 40 minutes at a time (ask for a clip of a longer video first). The first voice job downloads the voice models (1 to 3 GB each) unless you set up "with voice".
+
+Speech made by the voice models carries an inaudible watermark that marks it as made by AI.
+
 ## Titles, descriptions and posts
 
 > Write the YouTube titles, description, a LinkedIn post and an X thread for this video.
@@ -103,4 +139,6 @@ Say "update video audio agents". Claude gets the new version, runs the setup aga
 - **A link fails:** the other links still run. Copy-protected services (Netflix and similar) are not supported.
 - **Wikipedia or Wikimedia Commons:** sound and video files download directly from the file's page or its file link; no browser window opens. The folder is named after the file (for example `Roosevelt Pearl Harbor`).
 - **No Edge or Chrome:** say "set up the login browser" to install one just for this (about 150 MB).
+- **The voice doesn't sound like you:** save a new sample: 20 to 30 seconds, closer to the microphone, in a quiet room, in the language you will use.
+- **"The microphone couldn't be used" or "Nothing was heard":** check the microphone is plugged in and allowed in Windows Settings → Privacy & security → Microphone.
 - **Details of an error:** they are in `engine.log`, in the plugin's data folder (`~/.claude/plugins/data/video-audio-agents-madavai/`).

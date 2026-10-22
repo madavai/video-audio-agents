@@ -1,4 +1,6 @@
 """cut_clip and merge_audio_video on media made by ffmpeg at test time."""
+import subprocess
+
 import anyio
 import pytest
 from mcp.server.mcpserver.exceptions import ToolError
@@ -22,6 +24,17 @@ def test_clip_without_captions_is_copied(copy_of, with_models):
     clip = run(clips.cut_clip, str(video), "01:00", "01:30")["clip_file"]
     assert clip.endswith("long (clip 1-00 to 1-30).mp4")
     assert clips.probe_seconds(clip) == pytest.approx(30, abs=2.5)  # starts at the keyframe before 1:00
+
+
+def test_a_video_with_a_timecode_track_is_cut(copy_of, with_models, ffmpeg):
+    """Professional exports carry a timecode track that an mp4 can't take when copied (found on a NASA video)."""
+    video = copy_of("long.mp4")
+    stamped = video.with_name("stamped.mp4")
+    subprocess.run([ffmpeg, "-loglevel", "error", "-i", str(video), "-map", "0", "-c", "copy", "-timecode",
+                    "00:00:00:00", str(stamped)], check=True)
+    assert "data" in clips.probe(stamped, "-show_entries", "stream=codec_type")
+    clip = run(clips.cut_clip, str(stamped), "0:10", "0:20")["clip_file"]
+    assert clips.probe_seconds(clip) == pytest.approx(10, abs=2.5) and clips.has_video(clip)
 
 
 def test_clip_with_captions_burned_in(copy_of, with_models):

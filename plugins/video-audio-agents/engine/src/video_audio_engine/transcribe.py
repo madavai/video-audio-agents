@@ -1,5 +1,6 @@
 """transcribe: speech to text with faster-whisper. Writes a .txt (with timestamps, or as paragraphs) and a
 .segments.json (start, end, text per line) that subtitles, clips and dubbing are made from."""
+import gc
 import json
 from pathlib import Path
 
@@ -10,21 +11,21 @@ from . import models, paths
 
 ACCURACY = {"fast": "base", "balanced": "small", "accurate": "large-v3-turbo"}
 AUDIO = {".mp3", ".m4a", ".wav", ".webm", ".ogg", ".opus", ".flac", ".aac"}  # delete_audio_after never deletes a video
-loaded = {}  # one speech model in memory, kept for the next transcript
 
 
 def load(name: str, job):
     """The speech model, downloaded first if needed. Batched and with silence skipped: much faster on a CPU."""
-    if name not in loaded:
+    if name not in models.loaded:
         models.ensure([name], job.report)
         job.report(0, "Loading the speech-to-text model")
         from faster_whisper import BatchedInferencePipeline, WhisperModel
-        loaded.clear()
+        models.loaded.clear()  # a voice model takes several GB: let it go first
+        gc.collect()
         # 4 threads: more crashed outright (Windows stack overflow) with full batches of 8 on long recordings,
         # e.g. 12 threads on a 24-core PC; 4 was as fast in measurements.
         model = WhisperModel(str(models.folder(name)), device="cpu", compute_type="int8", cpu_threads=4)
-        loaded[name] = BatchedInferencePipeline(model)
-    return loaded[name]
+        models.loaded[name] = BatchedInferencePipeline(model)
+    return models.loaded[name]
 
 
 def transcribe(job, file: str, accuracy: str = "balanced", timestamps: bool = True,
@@ -32,14 +33,15 @@ def transcribe(job, file: str, accuracy: str = "balanced", timestamps: bool = Tr
     source = Path(file)
     if not source.is_file():
         raise ToolError(f"There is no file at {source}.")
-    pipeline = load(ACCURACY[accuracy], job)
-    job.report(0, "Listening")
-    try:
-        # Word timings instead of segment timings: the batched segment timings drop words at chunk ends.
-        segments, info = pipeline.transcribe(str(source), batch_size=8, word_timestamps=True)
-        lines = to_lines(segments, info.duration, job)
-    except av.error.FFmpegError as e:
-        raise ToolError(f"{source.name} couldn't be read as audio or video.") from e
+    with models.one_at_a_time(job):
+        pipeline = load(ACCURACY[accuracy], job)
+        job.report(0, "Listening")
+        try:
+            # Word timings instead of segment timings: the batched segment timings drop words at chunk ends.
+            segments, info = pipeline.transcribe(str(source), batch_size=8, word_timestamps=True)
+            lines = to_lines(segments, info.duration, job)
+        except av.error.FFmpegError as e:
+            raise ToolError(f"{source.name} couldn't be read as audio or video.") from e
 
     # Written only now, all at once, so a stopped transcript leaves no half-written files.
     name = paths.free_name(source.parent, source.stem, [".txt", ".segments.json"])

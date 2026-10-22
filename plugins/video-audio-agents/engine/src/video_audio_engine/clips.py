@@ -29,7 +29,8 @@ def cut_clip(job, video_file: str, start: str, end: str, subtitle_file: str | No
     name = f"{source.stem} (clip {clock(first, '-')} to {clock(last, '-')})"
     if not subtitle_file:  # copied as it is: instant, but the start snaps to the nearest keyframe before it
         output = paths.free_path(source.parent, name, source.suffix)
-        run(job, ["-ss", f"{first:.3f}", "-i", str(source), "-t", f"{last - first:.3f}", "-map", "0",
+        # Picture and sound only: a timecode or data track (common in professional exports) can't be copied into an mp4.
+        run(job, ["-ss", f"{first:.3f}", "-i", str(source), "-t", f"{last - first:.3f}", "-map", "0:v?", "-map", "0:a?",
                   "-c", "copy", "-avoid_negative_ts", "make_zero"], output, last - first, "Cutting the clip")
         return {"clip_file": str(output)}
     if not has_video(source):

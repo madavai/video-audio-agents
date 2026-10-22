@@ -1,6 +1,7 @@
 """Starts the engine exactly as Claude Code does (over stdin/stdout) and talks to it with the MCP client."""
 import json
 import os
+import subprocess
 import sys
 
 import anyio
@@ -8,7 +9,7 @@ from mcp.client.session import ClientSession
 from mcp.client.stdio import StdioServerParameters, stdio_client
 
 TOOLS = {"check_setup", "fetch_media", "transcribe", "save_text", "make_subtitles", "cut_clip", "merge_audio_video",
-         "translated_segments"}
+         "translated_segments", "list_voices", "save_voice", "record_voice", "speak", "speak_timed", "change_voice"}
 
 
 async def talk_to_engine(data_dir, calls):
@@ -82,3 +83,13 @@ def test_a_title_over_60_characters_is_refused_naming_it(private_data, tmp_path)
                                                "characters, over the 60 characters YouTube shows in full; "
                                                "shorten it and save again.")
     assert [p.name for p in folder.iterdir()] == ["Lesson.txt"]
+
+
+def test_details_reach_the_log_file(private_data):
+    """The MCP SDK gives the root logger a handler of its own when it loads; the engine's log file still gets
+    everything (it stayed empty before, while errors told people to look there)."""
+    code = ("import logging; from video_audio_engine import server; server.setup_logging(); "
+            "logging.getLogger('engine').error('the details')")
+    subprocess.run([sys.executable, "-c", code], env={**os.environ, "VAA_DATA": str(private_data)}, check=True,
+                   capture_output=True)
+    assert "ERROR engine: the details" in (private_data / "engine.log").read_text(encoding="utf-8")

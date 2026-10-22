@@ -10,7 +10,8 @@ from typing import Literal
 
 from mcp.server.mcpserver import Context, MCPServer
 
-from . import clips, media, models, progress, setup_check, subtitles, texts, transcribe as speech_to_text
+from . import clips, media, models, progress, setup_check, speech, subtitles, texts, voices
+from . import transcribe as speech_to_text
 from .paths import data_dir
 
 mcp = MCPServer(
@@ -105,12 +106,75 @@ async def merge_audio_video(video_file: str, audio_file: str, ctx: Context) -> s
     return json.dumps(await progress.run(ctx, clips.merge_audio_video, video_file, audio_file))
 
 
+Language = Literal["English", "Kannada", "Hindi", "French", "Spanish", "Tamil"]
+Speed = Literal["little_slower", "slower", "as_made"]
+
+
+@mcp.tool()
+def list_voices() -> str:
+    """The saved voices (names to pass as `voice`) and the folder they are in. Returns {voices, folder}."""
+    try:
+        return json.dumps(voices.list_voices())
+    except Exception as e:
+        raise progress.plain_error(e) from e
+
+
+@mcp.tool()
+async def save_voice(source_file: str, name: str, consent: bool, ctx: Context) -> str:
+    """Saves a voice from an audio or video file of one person speaking: the clearest 30 seconds, without the
+    silence around it, as Documents/VideoAudioAgents/voices/<name>.wav. Needs at least 10 seconds of speech.
+    consent must be true: only after the person confirmed it is their own voice or they have the speaker's
+    permission. Never replaces a saved voice ("name (2)"). Returns {voice, sample_file, seconds}."""
+    return json.dumps(await progress.run(ctx, voices.save_voice, source_file, name, consent))
+
+
+@mcp.tool()
+async def record_voice(name: str, consent: bool, ctx: Context, seconds: int = 20) -> str:
+    """Records the computer's microphone and saves it as a voice, like save_voice. It waits up to a minute for the
+    person to start speaking, then records `seconds` (10 to 30). consent must be true, as for save_voice.
+    Returns {voice, sample_file, seconds}."""
+    return json.dumps(await progress.run(ctx, voices.record_voice, name, seconds, consent))
+
+
+@mcp.tool()
+async def speak(voice: str, language: Language, ctx: Context, text: str | None = None,
+                transcript_file: str | None = None, speed: Speed = "little_slower",
+                output_name: str | None = None, folder: str | None = None) -> str:
+    """Reads text aloud in a saved voice, as an .mp3. Give `text`, or `transcript_file` (a transcript or any text
+    file; "[12.5s]" times are not read). Saved as "<name> (<voice> voice).mp3" next to the file, or for text in
+    `folder` (if given) or Documents/VideoAudioAgents/Speech/, named after its first words (or output_name). English, Hindi, French and Spanish are spoken directly in the voice;
+    Kannada and Tamil are read by an online reader voice and then changed into it (a weaker match).
+    speed: little_slower (default, sounds most natural), slower, as_made. Slow: about 5 to 8 seconds of work per
+    second of speech. Returns {output_file, seconds}."""
+    return json.dumps(await progress.run(ctx, speech.speak, voice, language, speed, text, transcript_file,
+                                         output_name, folder))
+
+
+@mcp.tool()
+async def speak_timed(segments_file: str, voice: str, language: Language, ctx: Context,
+                      speed: Speed = "little_slower") -> str:
+    """Dubbing: speaks every line of a translated .segments.json (from translated_segments) in a saved voice and
+    puts each at its line's start time, so it follows the original video. A line too long for its time is sped up
+    a little (at most 1.15 times); lines that still run over are listed in `overruns`. language is the language
+    of the lines. Saved as "<segments name> (<voice> voice).mp3"; then merge_audio_video puts it under the video.
+    Returns {output_file, seconds, lines, overruns, overrun_count}."""
+    return json.dumps(await progress.run(ctx, speech.speak_timed, segments_file, voice, language, speed))
+
+
+@mcp.tool()
+async def change_voice(file: str, voice: str, ctx: Context, speed: Speed = "as_made") -> str:
+    """Changes the voice in an audio or video file into a saved voice: the same words and timing, silence stays
+    silence. Saved as "<name> (<voice> voice).mp3" next to the file. Returns {output_file, seconds}."""
+    return json.dumps(await progress.run(ctx, speech.change_voice, file, voice, speed))
+
+
 def setup_logging() -> None:
     """Details and tracebacks go to <data>/engine.log, never to the screen (stdout carries the MCP messages)."""
     handler = logging.handlers.RotatingFileHandler(data_dir() / "engine.log", maxBytes=2_000_000, backupCount=1,
                                                    encoding="utf-8")
     handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
-    logging.basicConfig(level=logging.INFO, handlers=[handler])
+    # force: the MCP SDK has already given the root logger its own handler, which would make this do nothing.
+    logging.basicConfig(level=logging.INFO, handlers=[handler], force=True)
 
 
 def printer(prefix: str):

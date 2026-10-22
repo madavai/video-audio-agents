@@ -1,9 +1,11 @@
 """The models and helper programs the engine downloads: what each is, how big, where it lives,
 and downloading it with progress and resume. Every download in the engine goes through here."""
+import contextlib
 import http.client
 import os
 import shutil
 import sys
+import threading
 import urllib.request
 import zipfile
 from pathlib import Path
@@ -54,6 +56,21 @@ MODELS = {
 STANDARD = ["base", "small"]
 FULL = STANDARD + ["large-v3-turbo", "voice", "english", "multilingual"]
 FFMPEG_GB = 0.1  # about; the exact size comes with the download
+# The one big model in memory, kept for the next job: {name: model}. Speech-to-text and the voice models share it,
+# and each clears it before loading another, so the computer keeps enough memory.
+loaded = {}
+busy = threading.Lock()  # held by the job using the big model: a second job waits, so two are never loaded at once
+
+
+@contextlib.contextmanager
+def one_at_a_time(job):
+    """Waits until no other job is using a big model (Esc still stops the waiting), then holds the turn."""
+    while not busy.acquire(timeout=0.5):
+        job.report(0, "Waiting for the other voice or transcript job to finish")
+    try:
+        yield
+    finally:
+        busy.release()
 
 
 def models_dir() -> Path:

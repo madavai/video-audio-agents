@@ -2,6 +2,25 @@
 
 The version goes up with every change people should receive: a phase adds one to the middle number, a fix to the last. 1.0.0 is the release, after Phase 7.
 
+## 0.6.0
+
+Phase 5: voice and dubbing. All four agents are now in place; the 1.0 release (Phase 7) is next.
+
+### Phase 5: voice and dubbing
+- New **voice** agent: saves a voice (from a recording, or recorded on the computer's microphone) only with the person's permission, reads text and transcripts aloud in that voice, dubs a video into another language, and changes the voice in an audio or video file.
+- `save_voice`, `record_voice`, `list_voices`: voices in `Documents/VideoAudioAgents/voices/`, the clearest 30 seconds of speech, never replaced. Recording starts when the person starts speaking, so no words are lost.
+- `speak`: English, Hindi, French and Spanish in the saved voice (Chatterbox, on the computer); Kannada and Tamil read by a Microsoft reader voice and then changed into it. A little slower by default, as the models talk fast.
+- `speak_timed` (dubbing): each translated line starts when the original line did; a line too long for its time is sped up at most 15%, and any that still run over are reported. `merge_audio_video` then puts it under the video.
+- Dubbing speaks a very short line together with the next one, and trims the faint noise the voice models leave after the words: on a real NASA video, short Hindi lines spoken alone came out with babble after the words, long silences or a lost last word, which pushed the dub seconds out of step. Lines without words (a "…" over music) stay silent.
+- `change_voice`: the same words and timing in another voice; silence stays silence.
+- One big model in memory at a time: speech-to-text and the three voice models let each other go before loading, and a second voice or transcript job waits for the first to finish.
+- The transcriber and translator hand over to the voice agent for dubbing.
+- Speech made by the voice models keeps its inaudible watermark (a mark that it was made by AI), and voice work needs no internet except for the Kannada and Tamil reader voices. Two problems in the voice library stood in the way: the watermark didn't load without a small helper package, and the Hindi, French and Spanish model fetched a Chinese word list from the internet on every first load.
+
+### Fixes
+- The engine's log file (`engine.log`) stayed empty, although error messages point to it: the MCP SDK sets up logging first, which silently cancelled the engine's own setup.
+- A clip without captions couldn't be cut from videos that carry a timecode track, as professionally exported videos often do (found on a NASA video). Clips now copy only the picture and the sound.
+
 ## 0.5.0
 
 Phases 1 to 4 and 6. Voice and dubbing (Phase 5) come next, as 0.6.0.
