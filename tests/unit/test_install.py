@@ -33,7 +33,7 @@ def test_each_step_uses_the_environment_in_the_data_folder(step, tmp_path, monke
     assert done.value.code == 0
     assert seen["venv"] == str(tmp_path / "venv")
     assert seen["args"][0] == "the-uv-that-started-us"
-    assert seen["args"][2:5] == ["--frozen", "--project", str(install.ENGINE)]
+    assert seen["args"][2:6] == ["--frozen", "--no-active", "--project", str(install.ENGINE)]
 
 
 def test_an_unknown_step_is_refused(tmp_path):

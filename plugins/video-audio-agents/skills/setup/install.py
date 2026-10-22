@@ -14,7 +14,7 @@ ENGINE = Path(__file__).resolve().parents[2] / "engine"
 
 
 def uv_args(step, data):
-    project = ["--frozen", "--project", str(ENGINE)]
+    project = ["--frozen", "--no-active", "--project", str(ENGINE)]  # --no-active: ignore another tool's VIRTUAL_ENV
     if step == "packages":
         return ["sync", *project]
     if step in ("standard", "full"):
