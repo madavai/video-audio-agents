@@ -83,26 +83,33 @@ def test_a_dead_link_gives_a_plain_error_without_opening_a_browser(web, with_mod
 @pytest.fixture
 def wikimedia(media, monkeypatch):
     """A stand-in for Wikimedia, reached as a proxy so the links keep their real addresses: a Commons file link
-    redirects to the upload server, and like the real one it turns away a browser-like User-Agent with 403."""
+    redirects to the upload server, a Wikipedia file page has the file in an audio player, and like the real one it
+    turns away a browser-like User-Agent with 403."""
     agents = []
 
     class Wikimedia(http.server.BaseHTTPRequestHandler):
         def do_GET(self):
             url = urlsplit(self.path)
+            name = url.path.split("/")[-1].split(":")[-1]
             agents.append(self.headers["User-Agent"])
             if self.headers["User-Agent"].startswith("Mozilla"):
                 self.send_error(403)
             elif url.hostname == "commons.wikimedia.org":
                 self.send_response(302)
-                self.send_header("Location", "http://upload.wikimedia.org/f/fd/" + url.path.split("/")[-1])
+                self.send_header("Location", "http://upload.wikimedia.org/f/fd/" + name)
                 self.end_headers()
+            elif url.hostname == "en.wikipedia.org":
+                self.send(f"<html><head><title>File:{name} - Wikipedia</title></head><body><audio controls "
+                          f'src="http://upload.wikimedia.org/f/fd/{name}"></audio></body></html>'.encode(), "text/html")
             else:
-                data = (media / url.path.split("/")[-1]).read_bytes()
-                self.send_response(200)
-                self.send_header("Content-Type", "audio/mpeg")
-                self.send_header("Content-Length", str(len(data)))
-                self.end_headers()
-                self.wfile.write(data)
+                self.send((media / name).read_bytes(), "audio/mpeg")
+
+        def send(self, data, kind):
+            self.send_response(200)
+            self.send_header("Content-Type", kind)
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
 
         def log_message(self, *args):
             pass
@@ -119,6 +126,26 @@ def test_a_wikimedia_commons_file_link(wikimedia, with_models, tmp_path, monkeyp
     result = fetch("http://commons.wikimedia.org/wiki/Special:FilePath/talk.mp3", "audio", str(tmp_path))
     assert result["files"] == [str(tmp_path / "talk" / "talk.mp3")]
     assert wikimedia and all(agent.startswith("video-audio-agents (https://") for agent in wikimedia)
+
+
+def test_a_wikipedia_file_page_is_named_after_its_file(wikimedia, with_models, tmp_path, monkeypatch):
+    monkeypatch.setattr("video_audio_engine.browser.find_stream", lambda *a: pytest.fail("opened a browser"))
+    result = fetch("http://en.wikipedia.org/wiki/File:talk.mp3", "audio", str(tmp_path))
+    assert result["title"] == "talk" and result["files"] == [str(tmp_path / "talk" / "talk.mp3")]
+
+
+def test_wikipedia_file_page_names():
+    names = {"https://en.wikipedia.org/wiki/File:Roosevelt_Pearl_Harbor.ogg": "Roosevelt Pearl Harbor",
+             "https://de.wikipedia.org/wiki/Datei:Caf%C3%A9_Rede.ogg": "Café Rede",
+             "https://en.m.wikipedia.org/wiki/File:Talk_v1.2.webm": "Talk v1.2",
+             "https://en.wikipedia.org/wiki/Pearl_Harbor": None,  # an article keeps its own title
+             "https://en.wikipedia.org/wiki/Node.js": None,
+             "https://en.wikipedia.org/wiki/Help:Contents": None,
+             "https://commons.wikimedia.org/wiki/Special:FilePath/a.ogg": None,
+             "https://upload.wikimedia.org/wikipedia/commons/f/fd/a.ogg": None,
+             "https://example.com/wiki/File:a.ogg": None}
+    for url, name in names.items():
+        assert media.wiki_file_name(url) == name, url
 
 
 def test_only_wikimedia_gets_its_own_user_agent():
