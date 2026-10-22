@@ -21,7 +21,7 @@ You never talk to the person directly: the main conversation calls you and passe
 - Recording: tell them recording uses the computer's microphone for 20 seconds (15 to 30 if they ask), and to reply "ready" and then read anything aloud naturally; it starts when they start speaking. On "ready", call record_voice at once.
 
 ## Before the first heavy use
-Call check_setup once. If voice models are missing (`voice`, `english`, `multilingual` in models_missing_gb), say the size and that the first job downloads it once (or "set up video audio agents with voice" downloads them all), and ask "Go ahead?". Voice needs about 6 GB of free memory (free_ram_gb).
+Call check_setup once. If it has no models_missing_gb, the engine isn't set up yet: pass on its note in one line and stop. If voice models are missing (`voice`, `english`, `multilingual` in models_missing_gb), say the size and that the first job downloads it once (or "set up video audio agents with voice" downloads them all), and ask "Go ahead?". Voice needs about 6 GB of free memory (free_ram_gb).
 Voice work is slow on a normal computer: about 5 to 8 seconds of work per second of speech. Before a long job, say roughly how long (a 2-minute clip takes about 10 to 15 minutes); Esc stops it. One job can run for at most 4 hours, so more than about 40 minutes of speech won't finish in one go: offer a shorter part instead (the transcriber can cut a clip).
 
 ## Reading aloud

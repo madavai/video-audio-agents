@@ -2,6 +2,12 @@
 
 The version goes up with every change people should receive: a phase adds one to the middle number, a fix to the last. 1.0.0 is the release, after Phase 7.
 
+## 1.0.1
+
+### Fixes
+- The engine now connects in the first restart after setup: no more waiting 15 minutes or pressing Reconnect. Before the setup has installed it, the engine starts as a small stand-in that connects straight away and only says to run the setup (or, once the setup is done, to restart), so Claude Code never sees it fail and never switches it off. The 1.0.0 advice to Reconnect or wait 15 minutes is gone from the setup's closing message and the user guide, except for one case: when the setup had to install uv, Reconnect may still be needed once.
+- Claude's install steps in the README install uv first when it is missing, so the engine's command exists as soon as the plugin is loaded.
+
 ## 1.0.0
 
 Release 1.0 (Phase 7): Wave 1 is complete. Paste a link, or point at a recording, and get the video, the audio, a transcript, subtitles, notes, clips, a translation, a dubbed version in a saved voice and drafts of posts, all made on your own computer by four helpers: the transcriber, the translator, the voice helper and the publisher.

@@ -215,8 +215,8 @@ Shared rules: one big model in memory at a time (speech-to-text, voice, english,
     "engine": {
       "type": "stdio",
       "command": "uv",
-      "args": ["run", "--frozen", "--quiet", "--project", "${CLAUDE_PLUGIN_ROOT}/engine", "video-audio-engine"],
-      "env": { "VAA_DATA": "${CLAUDE_PLUGIN_DATA}", "UV_PROJECT_ENVIRONMENT": "${CLAUDE_PLUGIN_DATA}/venv" },
+      "args": ["run", "--no-project", "--python", "3.11", "--quiet", "${CLAUDE_PLUGIN_ROOT}/skills/setup/install.py", "serve", "${CLAUDE_PLUGIN_DATA}"],
+      "env": { "VAA_DATA": "${CLAUDE_PLUGIN_DATA}" },
       "timeout": 14400000
     }
   }
@@ -247,7 +247,7 @@ Facts relied on: `mcpServers` in `plugin.json` takes inline servers keyed by nam
 
 > Install https://github.com/madavai/video-audio-agents and set it up.
 
-Claude runs `claude plugin marketplace add madavai/video-audio-agents`, then `claude plugin install video-audio-agents@madavai --scope user`, reloads, and runs the setup skill. The person approves once. Even if they say "clone", Claude installs it this way; no manual clone.
+Claude installs uv if `uv --version` fails (so the engine's command exists as soon as the plugin loads), runs `claude plugin marketplace add madavai/video-audio-agents`, then `claude plugin install video-audio-agents@madavai --scope user`, reloads, and runs the setup skill. The person approves once. Even if they say "clone", Claude installs it this way; no manual clone.
 
 Claude desktop app (regular chat): Customize → Plugins → Add → paste `madavai/video-audio-agents` → Install, then "set up video audio agents". Developers: `git clone …`, then `claude --plugin-dir plugins/video-audio-agents` from the clone.
 
@@ -290,7 +290,7 @@ Updates: GitHub marketplaces don't auto-update by default. README: "say *update 
 
 Phase 1 confirms in MadavCC that Madav's chat (Agent SDK) sees plugins installed in the user's Claude folder; if it must be told, that is one setting in Madav, invisible to users. **Status at 1.0:** not done. A first look at an older Madav app found it doesn't load the person's plugins by design; the check is parked until the owner tries everything in the current Madav after the build.
 
-**Found at release (1.0 checklist):** the engine always fails to start once, in the first session after install, because its environment is still being built and that takes longer than Claude Code's MCP start limit. Claude Code then skips the server for 15 minutes ("recent failure cached"), so a restart soon after setup can still show `engine` as not connected. The setup's closing message and the user guide say what to do (`/mcp` → Reconnect, or wait 15 minutes and restart). Starting cleanly in that first session is a follow-up.
+**Found at release (1.0 checklist), fixed in 1.0.1:** the engine failed to start once, in the first session after install, because building its environment takes longer than Claude Code's MCP start limit. Claude Code then skips a plugin's server for 15 minutes ("recent failure cached"; it does so for any failed start, including a missing command or a quick exit, and `claude mcp list`/`get` don't clear it), so the restart after setup could still show `engine` as not connected. Now the server's command is `install.py serve <data>`: once `<data>/venv` has the engine's own command it runs the engine (`uv run --frozen --no-active --project <engine> --quiet video-audio-engine`); before that it answers as a stand-in MCP server whose only tool, `check_setup`, says to run the setup (or, once the setup has finished, to restart). One case is left: without uv the command itself is missing, so if the setup has to install uv, the restart can still find `engine` skipped; the README's install steps install uv before the plugin to avoid it, and the setup's closing message says to pick Reconnect in `/mcp` when it installed uv.
 
 ---
 
