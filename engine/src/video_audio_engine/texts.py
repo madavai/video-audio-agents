@@ -1,5 +1,6 @@
 """save_text: saves what the AI wrote (translations, summaries, chapters, notes, posts) next to the file it came
-from, as "name (label).ext". Long texts can be saved in parts: the later parts are appended.
+from, as "name (label).ext". Long texts can be saved in parts: the later parts are appended. Titles and X posts
+longer than their limit are refused, so every draft can be pasted as it is.
 translated_segments: pairs a translated transcript with the original timings, checking nothing was lost."""
 import json
 import re
@@ -12,9 +13,39 @@ from . import paths
 SEGMENTS = ".segments.json"
 
 
+def x_length(post: str) -> int:
+    """A post's length as X counts it: 1 for most characters (Latin, Indian scripts, dashes, quotes), 2 for
+    Chinese, Japanese, Korean and emoji."""
+    return sum(1 if ord(c) <= 0x10FF or 0x2000 <= ord(c) <= 0x200D or 0x2010 <= ord(c) <= 0x201F
+               or 0x2032 <= ord(c) <= 0x2037 else 2 for c in post)
+
+
+# Drafts with a length limit, by label: what one piece is called, what separates the pieces, the limit,
+# how it is counted, and the limit in words for the message.
+LIMITS = {
+    "titles": ("Title", r"\n", 60, len, "the 60 characters YouTube shows in full"),
+    "x-thread": ("X post", r"\n\s*\n", 280, x_length, "X's limit of 280 (posts are separated by a blank line)"),
+}
+LABEL = re.compile(r"\(([^()]+)\)(?: \(\d+\))?$")  # "Lesson (x-thread)" or "Lesson (x-thread) (2)"
+
+
+def check_limits(label: str, text: str) -> None:
+    """Refuses the whole text, naming the first piece that is too long, before anything is written."""
+    key = label.strip().lower().replace(" ", "-")
+    if key not in LIMITS:
+        return
+    piece, separator, limit, length, words = LIMITS[key]
+    for number, part in enumerate((p.strip() for p in re.split(separator, text) if p.strip()), 1):
+        if length(part) > limit:
+            start = " ".join(part.split())[:40].rstrip()
+            raise ToolError(f'{piece} {number} ("{start}...") is {length(part)} characters, over {words}; '
+                            "shorten it and save again.")
+
+
 def save_text(next_to: str, label: str, text: str, ext: str, append_to: str | None = None) -> dict:
     if append_to:
         return {"file": str(append(Path(append_to), text))}
+    check_limits(label, text)
     source = Path(next_to)
     root = paths.output_root()
     if not source.parent.is_dir():
@@ -38,6 +69,8 @@ def append(path: Path, text: str) -> Path:
     """Adds a later part: text goes on the end; a JSON list is extended with the new list."""
     if not path.is_file():
         raise ToolError(f"There is no file at {path} to add to. Save the first part without append_to.")
+    label = LABEL.search(path.stem)
+    check_limits(label[1] if label else "", text)
     if path.suffix == ".json":
         old = read_json(path.read_text(encoding="utf-8"), path.name.endswith(SEGMENTS))
         new = read_json(text, path.name.endswith(SEGMENTS))
