@@ -52,13 +52,25 @@ async def transcribe(file: str, ctx: Context, accuracy: Literal["fast", "balance
 @mcp.tool()
 def save_text(next_to: str, label: str, text: str, ext: Literal["txt", "md", "srt", "json"] = "txt",
               append_to: str | None = None) -> str:
-    """Saves text you wrote (a translation, summary, chapters, notes, a post, a glossary) as "<name> (<label>).ext"
-    next to the file `next_to`, never overwriting. For long texts, save the first part, then pass the returned
-    path as append_to for each later part. JSON next to a .segments.json file is saved as
-    "<name> (<label>).segments.json" and must be a list of {start, end, text}; appending extends the list.
-    Returns {file}."""
+    """Saves text you wrote (a translation, summary, chapters, notes, a post) as "<name> (<label>).ext" next to
+    the file `next_to`, never overwriting. With an empty label it is saved under next_to's own name (for example
+    <output_folder>/glossary.md). For long texts, save the first part, then pass the returned path as append_to
+    for each later part. JSON next to a .segments.json file is saved as "<name> (<label>).segments.json" and
+    must be a list of {start, end, text}; appending extends the list. Returns {file}."""
     try:
         return json.dumps(texts.save_text(next_to, label, text, ext, append_to))
+    except Exception as e:
+        raise progress.plain_error(e) from e
+
+
+@mcp.tool()
+def translated_segments(segments_file: str, translated_file: str) -> str:
+    """For translated subtitles and dubbing: pairs a translated transcript, written as "[12.5s] text" lines (one
+    per original line, times kept), with the original .segments.json. Saves "<translated name>.segments.json"
+    with the original times and the translated words. Fails with the list of missing or unknown times if the
+    translation isn't complete line for line, so nothing is lost. Returns {segments_file, lines}."""
+    try:
+        return json.dumps(texts.translated_segments(segments_file, translated_file))
     except Exception as e:
         raise progress.plain_error(e) from e
 

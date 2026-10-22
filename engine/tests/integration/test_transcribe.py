@@ -1,5 +1,7 @@
 """transcribe with the fast model on the 11-second public-domain speech sample (tests/fixtures/jfk.wav)."""
 import json
+import subprocess
+from pathlib import Path
 
 import anyio
 import pytest
@@ -8,6 +10,7 @@ from mcp.server.mcpserver.exceptions import ToolError
 from video_audio_engine import progress, transcribe
 
 WORDS = ["ask not", "country"]
+FIXTURES = Path(__file__).parent.parent / "fixtures"
 
 
 def run(file, **kwargs):
@@ -63,6 +66,17 @@ def test_stopping_leaves_no_half_written_transcript(copy_of, with_models):
 
     anyio.run(main)
     assert sorted(p.name for p in audio.parent.iterdir()) == ["long.mp3"]
+
+
+@pytest.mark.slow
+def test_a_long_recording_with_the_balanced_model(tmp_path, ffmpeg, with_models):
+    """Ten minutes fill whole batches of 8, which crashed the engine on a 24-core PC when it used 12 threads.
+    Downloads the balanced model (0.5 GB) into the shared test folder the first time."""
+    audio = tmp_path / "ten minutes.mp3"
+    subprocess.run([ffmpeg, "-loglevel", "error", "-stream_loop", "54", "-i", str(FIXTURES / "jfk.wav"), str(audio)],
+                   check=True)
+    result = transcribe.transcribe(progress.Job(), str(audio), "balanced")
+    assert result["duration_seconds"] > 600 and result["lines"] > 50
 
 
 def test_not_a_media_file(tmp_path, with_models):

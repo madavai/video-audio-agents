@@ -1,7 +1,6 @@
 """transcribe: speech to text with faster-whisper. Writes a .txt (with timestamps, or as paragraphs) and a
 .segments.json (start, end, text per line) that subtitles, clips and dubbing are made from."""
 import json
-import os
 from pathlib import Path
 
 import av
@@ -21,8 +20,9 @@ def load(name: str, job):
         job.report(0, "Loading the speech-to-text model")
         from faster_whisper import BatchedInferencePipeline, WhisperModel
         loaded.clear()
-        model = WhisperModel(str(models.folder(name)), device="cpu", compute_type="int8",
-                             cpu_threads=max(4, (os.cpu_count() or 4) // 2))
+        # 4 threads: more crashed outright (Windows stack overflow) with full batches of 8 on long recordings,
+        # e.g. 12 threads on a 24-core PC; 4 was as fast in measurements.
+        model = WhisperModel(str(models.folder(name)), device="cpu", compute_type="int8", cpu_threads=4)
         loaded[name] = BatchedInferencePipeline(model)
     return loaded[name]
 
@@ -54,7 +54,7 @@ def transcribe(job, file: str, accuracy: str = "balanced", timestamps: bool = Tr
 
 
 def to_lines(segments, duration: float, job) -> list:
-    """Sentence-sized lines from the word timings: a new line after a sentence ends, at a pause of over a second,
+    """Sentence-sized lines from the word timings: a new line after a sentence ends, at a pause of over a second (a sentence must last a second, so "Okay." joins the next one),
     or when a line would run past 12 seconds."""
     lines, words = [], []
 
@@ -69,7 +69,7 @@ def to_lines(segments, duration: float, job) -> list:
             if words and (word.start - words[-1].end > 1.0 or word.end - words[0].start > 12):
                 finish_line()
             words.append(word)
-            if word.word.strip().endswith((".", "?", "!", "।", "。")) and word.end - words[0].start > 1.5:
+            if word.word.strip().endswith((".", "?", "!", "।", "。")) and word.end - words[0].start > 1.0:
                 finish_line()
         pct = min(99.0, segment.end / max(duration, 0.1) * 100)
         job.report(pct, f"Transcribing... {int(pct)}%")
