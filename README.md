@@ -12,7 +12,7 @@ Claude installs the plugin, then runs the setup (about 3 GB of downloads, once).
 
 **Claude desktop app (regular chat):** Customize → Plugins → Add → paste `madavai/video-audio-agents` → Install. Then say "set up video audio agents".
 
-**Developers:** `git clone https://github.com/madavai/video-audio-agents`, then `claude --plugin-dir video-audio-agents`.
+**Developers:** `git clone https://github.com/madavai/video-audio-agents`, `cd video-audio-agents`, then `claude --plugin-dir plugins/video-audio-agents` and say "set up video audio agents" once. The plugin itself is the `plugins/video-audio-agents` folder; the rest of the repository (build plan, tests, CI) is for building it and is not installed.
 
 ### For Claude: how to install this
 

@@ -41,8 +41,3 @@ explicit = true
 [tool.uv.sources]
 torch = [{ index = "pytorch-cpu", marker = "sys_platform != 'darwin'" }]
 torchaudio = [{ index = "pytorch-cpu", marker = "sys_platform != 'darwin'" }]
-
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-addopts = "-m 'not slow'"
-markers = ["slow: needs the big voice models on this computer (run with -m slow)"]
