@@ -55,7 +55,8 @@ without downloading everything again, and stop cleanly when the person presses E
 - The first setup downloads about 3 GB (about 10 GB with voice). Setup names the sizes before it starts, shows
   progress and continues a broken download.
 - The engine must start within Claude Code's MCP start limit, so setup builds its environment before the first
-  start; the engine never builds it on demand.
+  start; the engine never builds it on demand. Until then a stand-in answers in its place (since 1.0.1), because
+  Claude Code skips a plugin's server that failed to start for the next 15 minutes.
 - Libraries that like to download their own files have to be stopped from doing so, or the person would wait
   without progress and the engine could break offline (see below).
 - The plugin works wherever Claude Code plugins load: Claude Code, the Claude desktop app, and Madav once its chat
@@ -116,9 +117,9 @@ computers. `docs/BUILD-PLAN.md` has been updated to match.
 - **Planned:** the repository root is the plugin, with the engine's environment in `engine/.venv`, and the engine
   declared in a root `.mcp.json`.
 - **Built:** the plugin is `plugins/video-audio-agents/` (manifest, agents, setup skill, engine), and the
-  marketplace at the root points there. The engine is declared under `mcpServers` in the plugin's `plugin.json`,
-  with `UV_PROJECT_ENVIRONMENT=${CLAUDE_PLUGIN_DATA}/venv`. The setup skill's install steps run through
-  `skills/setup/install.py`, which sets the same variable.
+  marketplace at the root points there. The engine is declared under `mcpServers` in the plugin's `plugin.json`.
+  It starts, like the setup skill's install steps, through `skills/setup/install.py`, which sets
+  `UV_PROJECT_ENVIRONMENT=${CLAUDE_PLUGIN_DATA}/venv`.
 - **Why:**
   - Claude Code copies the plugin's whole folder to each computer, so with the root as the plugin everyone also
     received the build plan, the reference apps, the tests and the CI files.

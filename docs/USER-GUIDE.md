@@ -49,9 +49,7 @@ there.
 ## First use
 
 1. **Restart Claude Code** after the setup (close it and open it again), so the engine starts. Type `/mcp`: `engine`
-   should show as connected. If it shows as failed, choose `engine` there and pick **Reconnect**. (The engine can't
-   start during the very first setup, and Claude Code may then leave it switched off for up to 15 minutes. If
-   Reconnect doesn't help, wait 15 minutes and restart Claude Code again.)
+   should show as connected. (Before the setup, the engine connects too, but can only tell Claude to run the setup.)
 2. **Ask for something**, for example:
    > Download the video and a transcript of https://www.youtube.com/watch?v=...
 3. **Allow the engine's tools.** The first time a helper uses the engine, Claude Code asks whether to allow it.
@@ -245,9 +243,8 @@ browser logins, up to 10 GB). Everything you made, in `Documents/VideoAudioAgent
 ## Troubleshooting
 
 - **`engine` isn't connected in `/mcp`, or Claude says the engine didn't start:** in `/mcp`, choose `engine` and pick
-  **Reconnect**. Right after the first setup, Claude Code may leave the engine switched off for up to 15 minutes,
-  because it couldn't start while the setup was still installing it: if Reconnect doesn't help, wait 15 minutes and
-  restart Claude Code.
+  **Reconnect**. This can happen once if the setup had to install uv (the small program that runs the engine): Claude
+  Code tried the engine before uv was there, and waits up to 15 minutes before trying it again on its own.
 - **Claude says "run the setup":** say "set up video audio agents", then restart Claude Code. Running the setup again
   is always safe.
 - **"Something went wrong":** the details are in `engine.log`, in the plugin's data folder

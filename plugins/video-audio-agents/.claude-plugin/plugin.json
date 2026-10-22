@@ -1,6 +1,6 @@
 {
   "name": "video-audio-agents",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Download, transcribe, translate, dub, voice and publish: four agents for video and audio links.",
   "author": { "name": "Madav", "url": "https://github.com/madavai" },
   "homepage": "https://github.com/madavai/video-audio-agents",
@@ -11,8 +11,8 @@
     "engine": {
       "type": "stdio",
       "command": "uv",
-      "args": ["run", "--frozen", "--quiet", "--project", "${CLAUDE_PLUGIN_ROOT}/engine", "video-audio-engine"],
-      "env": { "VAA_DATA": "${CLAUDE_PLUGIN_DATA}", "UV_PROJECT_ENVIRONMENT": "${CLAUDE_PLUGIN_DATA}/venv" },
+      "args": ["run", "--no-project", "--python", "3.11", "--quiet", "${CLAUDE_PLUGIN_ROOT}/skills/setup/install.py", "serve", "${CLAUDE_PLUGIN_DATA}"],
+      "env": { "VAA_DATA": "${CLAUDE_PLUGIN_DATA}" },
       "timeout": 14400000
     }
   }

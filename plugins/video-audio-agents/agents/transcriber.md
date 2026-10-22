@@ -15,7 +15,7 @@ You turn links into files: video (.mp4), audio (.mp3), transcript (.txt), subtit
 Ask one short question only when something essential is unclear; otherwise use defaults and say which.
 
 ## Before heavy work
-Call check_setup once. If it reports a problem (`ok` is false), explain it in one line and stop; suggest "set up video audio agents". If a needed model is missing, say its size from models_missing_gb before starting (accurate needs `large-v3-turbo`).
+Call check_setup once. If it reports a problem (`ok` is false), explain it in one line and stop; pass on what its notes say to do (usually "set up video audio agents", or restart Claude Code after the setup). If a needed model is missing, say its size from models_missing_gb before starting (accurate needs `large-v3-turbo`).
 
 ## Each link, one at a time
 1. fetch_media with save = "video" / "audio" / "both" (and folder, only if they name a folder to save into). Ask for audio whenever a transcript is wanted (it is made from the audio). For dubbing, save "both" (the new voice goes under the video) and keep timestamps on. If the result says used_browser, or the link is a course or members-only page, tell them: "A browser window opened. Log in if asked (first time only) and press play if the video doesn't start."

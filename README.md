@@ -26,9 +26,12 @@ not installed.
 
 When someone asks you to install this repository, do not clone it. Run:
 
-1. `claude plugin marketplace add madavai/video-audio-agents`
-2. `claude plugin install video-audio-agents@madavai --scope user`
-3. Then run this plugin's **setup** skill (standard, or full if they asked for voice). If the skill isn't available
+1. `uv --version`. If uv is missing, install it first, so the engine can start as soon as the plugin is loaded:
+   Windows `powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"`, macOS or Linux
+   `curl -LsSf https://astral.sh/uv/install.sh | sh`.
+2. `claude plugin marketplace add madavai/video-audio-agents`
+3. `claude plugin install video-audio-agents@madavai --scope user`
+4. Then run this plugin's **setup** skill (standard, or full if they asked for voice). If the skill isn't available
    yet in this session, ask the person to restart Claude Code and say "set up video audio agents".
 
 ## What you can ask
