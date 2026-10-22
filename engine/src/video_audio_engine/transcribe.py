@@ -33,14 +33,15 @@ def transcribe(job, file: str, accuracy: str = "balanced", timestamps: bool = Tr
     source = Path(file)
     if not source.is_file():
         raise ToolError(f"There is no file at {source}.")
-    pipeline = load(ACCURACY[accuracy], job)
-    job.report(0, "Listening")
-    try:
-        # Word timings instead of segment timings: the batched segment timings drop words at chunk ends.
-        segments, info = pipeline.transcribe(str(source), batch_size=8, word_timestamps=True)
-        lines = to_lines(segments, info.duration, job)
-    except av.error.FFmpegError as e:
-        raise ToolError(f"{source.name} couldn't be read as audio or video.") from e
+    with models.one_at_a_time(job):
+        pipeline = load(ACCURACY[accuracy], job)
+        job.report(0, "Listening")
+        try:
+            # Word timings instead of segment timings: the batched segment timings drop words at chunk ends.
+            segments, info = pipeline.transcribe(str(source), batch_size=8, word_timestamps=True)
+            lines = to_lines(segments, info.duration, job)
+        except av.error.FFmpegError as e:
+            raise ToolError(f"{source.name} couldn't be read as audio or video.") from e
 
     # Written only now, all at once, so a stopped transcript leaves no half-written files.
     name = paths.free_name(source.parent, source.stem, [".txt", ".segments.json"])

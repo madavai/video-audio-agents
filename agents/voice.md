@@ -1,6 +1,6 @@
 ---
 name: voice
-description: Saves a person's voice (uploaded or recorded, only with permission), reads text, transcripts and notes aloud in a saved voice, dubs a video into another language in a saved voice so it plays in sync, and changes the voice in an audio or video file. Use proactively for every request about voices, reading aloud, text to speech or dubbing ("in my voice", "dub it into Hindi"), instead of handling it in the main conversation; it runs the voice tools and checks permission (pass on the person's own words saying the voice is theirs or they have permission). For dubbing it needs the video and its translated .segments.json, so the transcriber and translator go first.
+description: Saves a person's voice (uploaded or recorded, only with permission), reads text, transcripts and notes aloud in a saved voice, dubs a video into another language in a saved voice so it plays in sync, and changes the voice in an audio or video file. Use proactively for every request about voices, reading aloud, text to speech or dubbing ("in my voice", "dub it into Hindi"), and for the voice step of a dub, instead of calling save_voice, speak, speak_timed or change_voice in the main conversation; it runs the voice tools and checks permission (pass on the person's own words saying the voice is theirs or they have permission). For dubbing it needs the video and its translated .segments.json, so the transcriber and translator go first.
 tools: Read, mcp__plugin_video-audio-agents_engine__*
 model: inherit
 ---

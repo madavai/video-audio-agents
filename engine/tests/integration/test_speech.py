@@ -101,7 +101,7 @@ def test_a_file_that_is_not_audio_is_refused(tmp_path, with_models):
 
 def test_speaking_text(stand_in, voice):
     result = run(speech.speak, "Test", "English", "little_slower", "Hello there. This is a test.")
-    assert result["output_file"] == str(paths.output_root() / "Speech" / "Speech (Test voice).mp3")
+    assert result["output_file"] == str(paths.output_root() / "Speech" / "Hello there (Test voice).mp3")  # first words
     spoken = len("Hello there. This is a test.") * SECONDS_PER_LETTER + speech.PAUSE
     assert result["seconds"] == pytest.approx(spoken / 0.9, abs=0.1)  # slowed to 0.9
     assert speech.voices.read_audio(result["output_file"], 16000).size / 16000 == pytest.approx(spoken / 0.9, abs=0.15)
@@ -125,7 +125,8 @@ def test_kannada_is_read_by_a_reader_voice_and_changed_into_the_saved_voice(stan
 
 
 def test_dubbing_puts_every_line_at_its_time(stand_in, voice, tmp_path):
-    segments = [{"start": 0.5, "end": 2.0, "text": "a" * 29 + "."},  # 1.5 s spoken, 2.5 s until the next: slowed to 0.9
+    segments = [{"start": 0.0, "end": 0.4, "text": "…"},  # no words (music, sound effects): stays silent
+                {"start": 0.5, "end": 2.0, "text": "a" * 39 + "."},  # 2.0 s spoken, 2.5 s until the next: slowed to 0.9
                 {"start": 3.0, "end": 4.5, "text": "b" * 43 + "."},  # 2.2 s in 2 s: sped up to 1.1, ends at 5.0
                 {"start": 5.0, "end": 6.0, "text": "c" * 39 + "."},  # 2.0 s in 1.5 s: 1.15 at most, so 0.24 s over
                 {"start": 6.5, "end": 9.0, "text": "d" * 9 + "."}]  # starts late, right after the line before
@@ -184,3 +185,14 @@ def test_transcribing_lets_a_voice_model_go_first(with_models, monkeypatch):
     monkeypatch.setattr(models, "loaded", {"multilingual": "a voice model of several GB"})
     transcribe.load("base", progress.Job())
     assert list(models.loaded) == ["base"]
+
+
+def test_a_second_voice_or_transcript_job_waits_for_the_first(with_models):
+    with models.one_at_a_time(progress.Job()):
+        waiting = progress.Job()
+        waiting.stop.set()  # Esc while it waits: it stops at once, without starting
+        with pytest.raises(progress.Stopped):
+            with models.one_at_a_time(waiting):
+                pass
+    with models.one_at_a_time(progress.Job()):  # free again once the first job is done
+        pass

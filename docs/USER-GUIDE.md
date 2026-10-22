@@ -88,13 +88,13 @@ Long transcripts are translated in parts and then checked line by line against t
 
 **Speed:** the voice models talk a little fast, so speech is made "a little slower" by default. Say "slower" for learners, or "as made".
 
-**Dubbing:** Claude downloads the video, makes a transcript, translates it, speaks each translated sentence in the saved voice at the moment the original sentence started, and puts the new sound under the video: `<title> (Hindi) (<voice> voice).mp4`. A sentence that is longer in the new language is sped up slightly (at most 15%) to fit; if one still runs over, Claude tells you where.
+**Dubbing:** Claude downloads the video, makes a transcript, translates it, speaks each translated sentence in the saved voice at the moment the original sentence started, and puts the new sound under the video: `<title> (Hindi) (<voice> voice).mp4`. A sentence that is longer in the new language is sped up slightly (at most 15%) to fit; if one still runs over, Claude tells you where. Very short sentences are spoken together with the next one, which sounds more natural.
 
 What you get:
 
 | You ask for | File |
 |---|---|
-| reading aloud | `<name> (<voice> voice).mp3` next to the file read, or in `Documents/VideoAudioAgents/Speech/` |
+| reading aloud | `<name> (<voice> voice).mp3` next to the file read; for text you typed, `<its first words> (<voice> voice).mp3` in `Documents/VideoAudioAgents/Speech/` |
 | dubbing | `<title> (<language>) (<voice> voice).mp3` and the same name `.mp4` |
 | a changed voice | `<name> (<voice> voice).mp3` next to the original |
 

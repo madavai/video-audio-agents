@@ -36,10 +36,12 @@ def speak(job, voice: str, language: str, speed: str = "little_slower", text: st
         source = existing(transcript_file)
         words, folder, name = plain_text(source.read_text(encoding="utf-8")), source.parent, source.stem
     else:
-        words, folder, name = plain_text(text or ""), paths.output_root() / "Speech", "Speech"
+        words, folder = plain_text(text or ""), paths.output_root() / "Speech"
+        # Named after its first words, so several readings can be told apart.
+        name = paths.safe_name(" ".join(re.split(r"[.!?।]", words)[0].split()[:6]), "Speech", limit=40)
     if not words:
         raise ToolError("There are no words to read aloud. Give the text, or the path of a transcript.")
-    with tempfile.TemporaryDirectory() as tmp:
+    with models.one_at_a_time(job), tempfile.TemporaryDirectory() as tmp:
         lines, rate = spoken(job.report, text_pieces(words), language, voices.sample(voice, tmp),
                              f"Speaking in the {in_voice(voice)}")
     gap = np.zeros(int(PAUSE * rate), np.float32)
@@ -54,10 +56,13 @@ def speak_timed(job, segments_file: str, voice: str, language: str, speed: str =
     audio follows the video. A line too long for its time is sped up a little; what still doesn't fit is reported."""
     check_language(language)
     source = existing(segments_file)
-    segments = [s for s in read_json(source.read_text(encoding="utf-8"), segments=True) if plain_text(s["text"])]
+    # Lines without a word (a translated "…" over music) stay silent.
+    segments = read_json(source.read_text(encoding="utf-8"), segments=True)
+    segments = [s for s in segments if re.search(r"\w", s["text"])]
     if not segments:
         raise ToolError(f"{source.name} has no lines to speak.")
-    with tempfile.TemporaryDirectory() as tmp:
+    count, segments = len(segments), joined(segments)
+    with models.one_at_a_time(job), tempfile.TemporaryDirectory() as tmp:
         lines, rate = spoken(part(job.report, 0, 95), [plain_text(s["text"]) for s in segments], language,
                              voices.sample(voice, tmp), f"Dubbing in the {in_voice(voice)}")
     timing, overruns = place(segments, [len(line) / rate for line in lines], SPEEDS[speed])
@@ -68,7 +73,7 @@ def speak_timed(job, segments_file: str, voice: str, language: str, speed: str =
         track[round(at * rate):round(at * rate) + len(line)] += line
     base = source.name.removesuffix(SEGMENTS) if source.name.endswith(SEGMENTS) else source.stem
     output = paths.free_path(source.parent, f"{base} ({in_voice(voice)})", ".mp3")
-    return {"output_file": str(output), "seconds": save_mp3(track, rate, output), "lines": len(lines),
+    return {"output_file": str(output), "seconds": save_mp3(track, rate, output), "lines": count,
             "overruns": overruns[:20], "overrun_count": len(overruns)}
 
 
@@ -76,7 +81,7 @@ def change_voice(job, file: str, voice: str, speed: str = "as_made") -> dict:
     """The same words and timing as an audio or video file, in the saved voice. Silence stays silence."""
     source = existing(file)
     audio = voices.read_audio(source, 16000)
-    with tempfile.TemporaryDirectory() as tmp:
+    with models.one_at_a_time(job), tempfile.TemporaryDirectory() as tmp:
         sample = voices.sample(voice, tmp)  # an unknown voice is reported before the model loads
         vc = load("voice", job.report)
         vc.set_target_voice(sample)
@@ -138,7 +143,7 @@ def spoken(report, texts: list, language: str, sample: str, label: str) -> tuple
                 audio = model.generate(text, language_id=CLONED[language]).squeeze(0).numpy()
             else:
                 audio = convert(model, read_aloud(text, reader, tmp), 16000, tmp)
-            lines.append(trimmed(audio))
+            lines.append(trimmed(audio, model.sr))
     report(100, f"{label}: done")
     return lines, model.sr
 
@@ -189,9 +194,28 @@ def read_aloud(text: str, reader: str, tmp) -> np.ndarray:
     return voices.read_audio(path, 16000)
 
 
-def trimmed(audio: np.ndarray) -> np.ndarray:
+def trimmed(audio: np.ndarray, rate: int) -> np.ndarray:
+    """Without the silence or faint noise the voice models often leave before and after the words (a little is kept,
+    so soft endings aren't cut)."""
     import librosa
-    return librosa.effects.trim(audio, top_db=40)[0] if audio.size else audio
+    loud = librosa.effects.split(audio, top_db=25) if audio.size else []
+    if not len(loud):
+        return audio
+    return audio[max(0, loud[0][0] - int(0.05 * rate)):loud[-1][1] + int(0.15 * rate)]
+
+
+def joined(segments: list, shortest: int = 40, gap: float = 1.5) -> list:
+    """Dubbing: a short line is spoken together with the next one when that follows within `gap` seconds, starting at
+    the first one's time. On their own, short lines come out garbled: babble after the words, long silences, or a lost
+    last word (measured on Hindi); whole sentences don't."""
+    lines = []
+    for segment in segments:
+        last = lines[-1] if lines else None
+        if last and len(last["text"]) < shortest and segment["start"] - last["end"] < gap:
+            lines[-1] = {**last, "end": segment["end"], "text": f"{last['text']} {segment['text']}"}
+        else:
+            lines.append(dict(segment))
+    return lines
 
 
 def place(segments: list, lengths: list, speed: float) -> tuple[list, list]:

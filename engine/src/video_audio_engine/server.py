@@ -141,8 +141,8 @@ async def speak(voice: str, language: Language, ctx: Context, text: str | None =
                 transcript_file: str | None = None, speed: Speed = "little_slower",
                 output_name: str | None = None) -> str:
     """Reads text aloud in a saved voice, as an .mp3. Give `text`, or `transcript_file` (a transcript or any text
-    file; "[12.5s]" times are not read). Saved as "<name> (<voice> voice).mp3" next to the file, or in
-    Documents/VideoAudioAgents/Speech/ for text. English, Hindi, French and Spanish are spoken directly in the voice;
+    file; "[12.5s]" times are not read). Saved as "<name> (<voice> voice).mp3" next to the file, or for text in
+    Documents/VideoAudioAgents/Speech/ named after its first words (or output_name). English, Hindi, French and Spanish are spoken directly in the voice;
     Kannada and Tamil are read by an online reader voice and then changed into it (a weaker match).
     speed: little_slower (default, sounds most natural), slower, as_made. Slow: about 5 to 8 seconds of work per
     second of speech. Returns {output_file, seconds}."""
@@ -173,7 +173,8 @@ def setup_logging() -> None:
     handler = logging.handlers.RotatingFileHandler(data_dir() / "engine.log", maxBytes=2_000_000, backupCount=1,
                                                    encoding="utf-8")
     handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
-    logging.basicConfig(level=logging.INFO, handlers=[handler])
+    # force: the MCP SDK has already given the root logger its own handler, which would make this do nothing.
+    logging.basicConfig(level=logging.INFO, handlers=[handler], force=True)
 
 
 def printer(prefix: str):

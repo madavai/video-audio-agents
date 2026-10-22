@@ -75,6 +75,27 @@ def test_dubbing_lines_start_at_their_time_and_are_sped_up_at_most_115_percent()
     assert overruns == [{"at": "0:08", "over_by": round(8 + 3.0 / 1.15 - 10, 1)}]
 
 
+def test_short_dub_lines_are_spoken_together_with_the_next_one():
+    lines = [{"start": 26.5, "end": 28.2, "text": "पर एक सवाल बार-बार आता है।"},  # short, next within 1.5 s: joined
+             {"start": 29.2, "end": 30.2, "text": "इसे चलाते कैसे हैं?"},
+             {"start": 31.7, "end": 34.3, "text": "तो पहले, एक दमदार रेस कार सोचिए।"},  # short, but 9 s of quiet after
+             {"start": 43.1, "end": 44.8, "text": "सोच लिया? बढ़िया।"},
+             {"start": 45.2, "end": 46.4, "text": "ये बिल्कुल वैसा नहीं है।"},
+             {"start": 47.7, "end": 53.7, "text": "न तो इंजन की गड़गड़ाहट, न हवा, न स्टीयरिंग, बस आदेश और इंतज़ार।"}]
+    joined = speech.joined(lines)
+    assert [(line["start"], line["end"]) for line in joined] == [(26.5, 30.2), (31.7, 34.3), (43.1, 46.4), (47.7, 53.7)]
+    assert joined[0]["text"] == "पर एक सवाल बार-बार आता है। इसे चलाते कैसे हैं?"
+    assert lines[0]["end"] == 28.2  # the original lines are left as they were
+
+
+def test_faint_noise_after_the_words_is_trimmed():
+    rate = 24000
+    words = speechlike(1.0, rate, loudness=0.3)
+    hiss = (0.01 * np.random.default_rng(1).standard_normal(2 * rate)).astype(np.float32)
+    trimmed = speech.trimmed(np.concatenate([np.zeros(rate // 2, np.float32), words, hiss]), rate)
+    assert len(trimmed) / rate == pytest.approx(1.2, abs=0.1)  # the words, and a little either side
+
+
 def test_only_the_six_languages_and_the_right_model_for_each(monkeypatch):
     with pytest.raises(ToolError, match="can't be spoken yet"):
         speech.check_language("German")
