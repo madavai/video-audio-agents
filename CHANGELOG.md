@@ -8,6 +8,7 @@
 
 ### Fixes
 - Opening Claude Code inside the repository folder no longer shows a failed `engine` server. The engine is now declared in the plugin manifest instead of a root `.mcp.json`; installing the plugin and `claude --plugin-dir` work as before.
+- Download and transcript requests now go to the **transcriber** agent instead of being handled in the main conversation (its description says "Use proactively", like the translator's and publisher's). It also takes a recording already on the computer, and a folder to save into when one is named.
 - Wikipedia and Wikimedia Commons file links (`…/wiki/Special:FilePath/…`, `…/wiki/File:…`, `upload.wikimedia.org`) now download instead of failing with "HTTP Error 403: Forbidden". Wikimedia turns away programs that pretend to be a browser, so the engine now names itself to Wikimedia sites only; every other site is downloaded exactly as before.
 
 ### Phase 4: translator
