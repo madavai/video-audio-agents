@@ -2,7 +2,7 @@
 import logging
 import tempfile
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import unquote, urlsplit
 
 import yt_dlp
 from mcp.server.mcpserver.exceptions import ToolError
@@ -82,14 +82,28 @@ def read_link(url: str) -> str:
     """The title, if the downloader understands the link by itself (YouTube, Vimeo, direct files and many more)."""
     with yt_dlp.YoutubeDL({"quiet": True, "noplaylist": True, "logger": ToLog(), "http_headers": identify(url),
                            **js_runtime()}) as ydl:
-        return ydl.extract_info(url, download=False).get("title")
+        title = ydl.extract_info(url, download=False).get("title")
+    return wiki_file_name(url) or title
+
+
+def wikimedia(url: str) -> bool:
+    return (urlsplit(url).hostname or "").endswith((".wikimedia.org", ".wikipedia.org"))
 
 
 def identify(url: str) -> dict:
     """Wikimedia (Wikipedia, Commons) turns away programs that pretend to be a web browser and asks them to say who
     they are. Every other site keeps the downloader's usual browser-like headers (an empty dict changes nothing)."""
-    host = urlsplit(url).hostname or ""
-    return {"User-Agent": AGENT} if host.endswith((".wikimedia.org", ".wikipedia.org")) else {}
+    return {"User-Agent": AGENT} if wikimedia(url) else {}
+
+
+def wiki_file_name(url: str) -> str | None:
+    """A Wikipedia file page (/wiki/File:Pearl_Harbor.ogg, or Datei:, Fichier:... in other languages) is named after
+    its file, as Commons names it: "Pearl Harbor" rather than the page title "File:Pearl Harbor.ogg - Wikipedia"."""
+    page = unquote(urlsplit(url).path).removeprefix("/wiki/")
+    if not wikimedia(url) or "/" in page or ":" not in page:
+        return None
+    name, dot, _ = page.split(":", 1)[1].rpartition(".")
+    return name.replace("_", " ") if dot and name else None
 
 
 def options(job, save: str, base: str, ffmpeg: Path) -> dict:

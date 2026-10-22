@@ -97,6 +97,6 @@ The posts use the speaker's own words and examples: no invented facts or numbers
 
 - **"Run the setup"**: say "set up video audio agents". Running it again is always safe; it skips what is already there and continues broken downloads.
 - **A link fails:** the other links still run. Copy-protected services (Netflix and similar) are not supported.
-- **Wikipedia or Wikimedia Commons:** sound and video files download directly from the file's page or its file link; no browser window opens.
+- **Wikipedia or Wikimedia Commons:** sound and video files download directly from the file's page or its file link; no browser window opens. The folder is named after the file (for example `Roosevelt Pearl Harbor`).
 - **No Edge or Chrome:** say "set up the login browser" to install one just for this (about 150 MB).
 - **Details of an error:** they are in `engine.log`, in the plugin's data folder (`~/.claude/plugins/data/video-audio-agents-madavai/`).
