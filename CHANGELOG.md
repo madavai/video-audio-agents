@@ -4,6 +4,7 @@
 
 ### Fixes
 - Opening Claude Code inside the repository folder no longer shows a failed `engine` server. The engine is now declared in the plugin manifest instead of a root `.mcp.json`; installing the plugin and `claude --plugin-dir` work as before.
+- Download and transcript requests now go to the **transcriber** agent instead of being handled in the main conversation (its description says "Use proactively", like the translator's and publisher's). It also takes a recording already on the computer, and a folder to save into when one is named.
 
 ### Phase 4: translator
 - New **translator** agent: transcripts, notes and any text into another language, saved next to the original as `<name> (<language>).txt`; long transcripts in parts of about 150 lines.
