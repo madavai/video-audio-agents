@@ -1,4 +1,8 @@
 """fetch_media against a local web server with media made by ffmpeg at test time."""
+import http.server
+import threading
+from urllib.parse import urlsplit
+
 import anyio
 import pytest
 from mcp.server.mcpserver.exceptions import ToolError
@@ -74,6 +78,56 @@ def test_a_dead_link_gives_a_plain_error_without_opening_a_browser(web, with_mod
     with pytest.raises(ToolError, match="doesn't exist any more"):
         fetch(f"{web}/missing.mp3", "audio", str(tmp_path))
     assert list(tmp_path.iterdir()) == []
+
+
+@pytest.fixture
+def wikimedia(media, monkeypatch):
+    """A stand-in for Wikimedia, reached as a proxy so the links keep their real addresses: a Commons file link
+    redirects to the upload server, and like the real one it turns away a browser-like User-Agent with 403."""
+    agents = []
+
+    class Wikimedia(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            url = urlsplit(self.path)
+            agents.append(self.headers["User-Agent"])
+            if self.headers["User-Agent"].startswith("Mozilla"):
+                self.send_error(403)
+            elif url.hostname == "commons.wikimedia.org":
+                self.send_response(302)
+                self.send_header("Location", "http://upload.wikimedia.org/f/fd/" + url.path.split("/")[-1])
+                self.end_headers()
+            else:
+                data = (media / url.path.split("/")[-1]).read_bytes()
+                self.send_response(200)
+                self.send_header("Content-Type", "audio/mpeg")
+                self.send_header("Content-Length", str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
+
+        def log_message(self, *args):
+            pass
+
+    httpd = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Wikimedia)
+    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    monkeypatch.setenv("http_proxy", f"http://127.0.0.1:{httpd.server_port}")
+    yield agents
+    httpd.shutdown()
+
+
+def test_a_wikimedia_commons_file_link(wikimedia, with_models, tmp_path, monkeypatch):
+    monkeypatch.setattr("video_audio_engine.browser.find_stream", lambda *a: pytest.fail("opened a browser"))
+    result = fetch("http://commons.wikimedia.org/wiki/Special:FilePath/talk.mp3", "audio", str(tmp_path))
+    assert result["files"] == [str(tmp_path / "talk" / "talk.mp3")]
+    assert wikimedia and all(agent.startswith("video-audio-agents (https://") for agent in wikimedia)
+
+
+def test_only_wikimedia_gets_its_own_user_agent():
+    for url in ["https://commons.wikimedia.org/wiki/Special:FilePath/a.ogg", "https://upload.wikimedia.org/a.ogg",
+                "https://en.wikipedia.org/wiki/File:a.ogg"]:
+        assert media.identify(url) == {"User-Agent": media.AGENT}
+    for url in ["https://www.youtube.com/watch?v=a", "http://127.0.0.1:8000/a.mp3", "https://notwikipedia.org/a",
+                "https://upload.wikimedia.org.example.com/a.ogg", "not a link"]:
+        assert media.identify(url) == {}
 
 
 needs_browser = pytest.mark.skipif(find_browser() is None, reason="needs Edge or Chrome")
