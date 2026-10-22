@@ -1,6 +1,15 @@
 # Changelog
 
-## Unreleased (1.0.0)
+The version goes up with every change people should receive: a phase adds one to the middle number, a fix to the last. 1.0.0 is the release, after Phase 7.
+
+## 0.5.0
+
+Phases 1 to 4 and 6. Voice and dubbing (Phase 5) come next, as 0.6.0.
+
+### Packaging
+- The version now follows the build. It said 1.0.0 from the start, and Claude Code only offers an update when the version changes, so nobody who installed early would ever have received a later phase.
+- The plugin has its own folder in the repository, `plugins/video-audio-agents/` (agents, setup skill, engine), and the marketplace points there. Installing copies only that folder: no more build plan, reference apps, tests or CI files on people's computers. The engine's tests moved to `tests/` at the repository root. Developers load the plugin with `claude --plugin-dir plugins/video-audio-agents`.
+- The engine's private Python (about 3 GB) is kept in the plugin's data folder (`venv`), no longer inside the installed plugin, which Claude Code replaces on every update. Run the setup once after updating to this version: it builds the engine there, mostly from files uv already has, then skips it on later updates.
 
 ### Phase 6: publisher
 - New **publisher** agent: from a transcript (and its chapters or summary), drafts of YouTube title options, a description with chapters, tags, a LinkedIn post, an X thread, an Instagram caption, a newsletter blurb and quote lines with their times, each saved next to the transcript as `<name> (<label>).txt`. The speaker's own words, no invented facts or numbers, no clickbait; drafts only, never posted.

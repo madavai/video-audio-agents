@@ -5,7 +5,7 @@
   "plugins": [
     {
       "name": "video-audio-agents",
-      "source": ".",
+      "source": "./plugins/video-audio-agents",
       "description": "Download, transcribe, translate, dub, voice and publish agents."
     }
   ]

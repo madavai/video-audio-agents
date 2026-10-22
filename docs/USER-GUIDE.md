@@ -93,6 +93,10 @@ Make the transcript first (the transcriber does it from the link). If you don't 
 
 The posts use the speaker's own words and examples: no invented facts or numbers, and no clickbait titles. They are drafts for you to read and edit; nothing is ever posted for you. Titles and X posts are checked for length when they are saved, so they paste without being cut off. To get posts in another language, ask for a translation of the post files.
 
+## Updating
+
+Say "update video audio agents". Claude gets the new version, runs the setup again and asks you to restart Claude Code. The engine, ffmpeg, the models and your browser logins are kept in the plugin's data folder, so an update only adds what changed instead of starting over. Uninstalling the plugin removes that folder too.
+
 ## Troubleshooting
 
 - **"Run the setup"**: say "set up video audio agents". Running it again is always safe; it skips what is already there and continues broken downloads.

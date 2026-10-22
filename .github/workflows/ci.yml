@@ -12,23 +12,20 @@ jobs:
       matrix:
         os: [windows-latest, ubuntu-latest]
     runs-on: ${{ matrix.os }}
-    defaults:
-      run:
-        working-directory: engine
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v10.3.1  # this action publishes exact version tags only
         with:
           enable-cache: true
-          cache-dependency-glob: engine/uv.lock
+          cache-dependency-glob: plugins/video-audio-agents/engine/uv.lock
       - name: Install the engine (locked versions)
-        run: uv sync --frozen
+        run: uv sync --frozen --project plugins/video-audio-agents/engine
       - name: Keep ffmpeg and the fast speech model between runs
         uses: actions/cache@v6
         with:
-          path: engine/.test-data
-          key: test-data-${{ runner.os }}-${{ hashFiles('engine/src/video_audio_engine/models.py') }}
+          path: .test-data
+          key: test-data-${{ runner.os }}-${{ hashFiles('plugins/video-audio-agents/engine/src/video_audio_engine/models.py') }}
       - name: Check the plugin files are valid JSON
-        run: uv run --frozen python -c "import json; [json.load(open(f, encoding='utf-8')) for f in ('../.claude-plugin/plugin.json', '../.claude-plugin/marketplace.json')]"
+        run: uv run --frozen --project plugins/video-audio-agents/engine python -c "import json; [json.load(open(f, encoding='utf-8')) for f in ('plugins/video-audio-agents/.claude-plugin/plugin.json', '.claude-plugin/marketplace.json')]"
       - name: Unit and integration tests
-        run: uv run --frozen pytest -v
+        run: uv run --frozen --project plugins/video-audio-agents/engine pytest -v
