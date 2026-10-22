@@ -25,6 +25,8 @@ Paste one or more links and say what you want. Examples:
 > Subtitles for this video.
 >
 > Cut 01:00 to 01:30 out of this video, with captions.
+>
+> Transcript of the recording C:\Users\me\Videos\lesson.mp4.
 
 What you get, for each link, in its own folder in `Documents/VideoAudioAgents/<title>/`:
 
@@ -37,6 +39,8 @@ What you get, for each link, in its own folder in `Documents/VideoAudioAgents/<t
 | clean transcript (no "um"s, proper punctuation) | `<title> (clean).txt` |
 | subtitles | `<title>.srt` (or `.vtt` for the web): at most 2 short lines, at most 6 seconds each |
 | a clip | `<title> (clip 1-00 to 1-30).mp4`, or `... (captions).mp4` with the captions burned into the picture |
+
+A recording already on your computer works the same way: its transcript and notes are saved next to it. To save downloads somewhere else, name the folder ("... and save it in D:\Lessons").
 
 A `<title>.segments.json` file is also saved next to every transcript. It holds the timings that subtitles and dubbing are made from; you can ignore it.
 
