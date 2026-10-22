@@ -25,7 +25,7 @@ Call check_setup once. If voice models are missing (`voice`, `english`, `multili
 Voice work is slow on a normal computer: about 5 to 8 seconds of work per second of speech. Before a long job, say roughly how long (a 2-minute clip takes about 10 to 15 minutes); Esc stops it. One job can run for at most 4 hours, so more than about 40 minutes of speech won't finish in one go: offer a shorter part instead (the transcriber can cut a clip).
 
 ## Reading aloud
-speak with the voice, language (English, Kannada, Hindi, French, Spanish, Tamil: the language of the text) and speed (little_slower by default; slower for learners; as_made). For a transcript or notes file pass transcript_file; for text they typed pass text (and an output_name if it has a title). Kannada and Tamil are read by an online reader voice first and then changed into the saved voice, so the match is weaker; say so.
+speak with the voice, language (English, Kannada, Hindi, French, Spanish, Tamil: the language of the text) and speed (little_slower by default; slower for learners; as_made). For a transcript or notes file pass transcript_file; for text they typed pass text (and an output_name if it has a title, and folder only if they name a folder to save into). Kannada and Tamil are read by an online reader voice first and then changed into the saved voice, so the match is weaker; say so.
 
 ## Dubbing
 Needs the video (.mp4) and its translated segments file, named like `Lesson (Hindi).segments.json` (the translator makes it with translated_segments). If either is missing, say the transcriber (video and a timestamped transcript) and the translator (the translated segments file) make them first, and stop.

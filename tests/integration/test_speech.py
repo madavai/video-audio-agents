@@ -106,6 +106,8 @@ def test_speaking_text(stand_in, voice):
     assert result["seconds"] == pytest.approx(spoken / 0.9, abs=0.1)  # slowed to 0.9
     assert speech.voices.read_audio(result["output_file"], 16000).size / 16000 == pytest.approx(spoken / 0.9, abs=0.15)
     assert stand_in.languages == [None]
+    elsewhere = run(speech.speak, "Test", "English", "as_made", "Hello.", None, None, str(paths.output_root() / "Mine"))
+    assert elsewhere["output_file"] == str(paths.output_root() / "Mine" / "Hello (Test voice).mp3")  # a folder they named
 
 
 def test_speaking_a_transcript_leaves_the_times_out(stand_in, voice, tmp_path):

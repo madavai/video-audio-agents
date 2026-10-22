@@ -69,8 +69,10 @@ def test_change_voice_keeps_the_length_and_sounds_like_the_saved_voice(reader_vo
 
 def test_dubbing_three_hindi_lines_each_start_within_a_fifth_of_a_second(reader_voice, tmp_path):
     import librosa
-    lines = [{"start": 0.5, "end": 3.0, "text": "नमस्ते दोस्तों।"}, {"start": 4.0, "end": 6.5, "text": "आज मौसम अच्छा है।"},
-             {"start": 8.0, "end": 10.5, "text": "धन्यवाद।"}]
+    # Whole sentences, 2 seconds apart (a short line would be spoken together with the next one).
+    lines = [{"start": 0.5, "end": 4.0, "text": "नमस्ते दोस्तों, आज हम चाँद के बारे में बात करेंगे।"},
+             {"start": 6.0, "end": 9.5, "text": "आज मौसम बहुत अच्छा है और आसमान बिल्कुल साफ़ है।"},
+             {"start": 11.5, "end": 16.5, "text": "आप सबका बहुत धन्यवाद, अगली बार फिर मिलेंगे।"}]
     file = tmp_path / "Talk (Hindi).segments.json"
     file.write_text(json.dumps(lines, ensure_ascii=False), encoding="utf-8")
     result = run(speech.speak_timed, str(file), "Reader", "Hindi", "little_slower")

@@ -139,15 +139,15 @@ async def record_voice(name: str, consent: bool, ctx: Context, seconds: int = 20
 @mcp.tool()
 async def speak(voice: str, language: Language, ctx: Context, text: str | None = None,
                 transcript_file: str | None = None, speed: Speed = "little_slower",
-                output_name: str | None = None) -> str:
+                output_name: str | None = None, folder: str | None = None) -> str:
     """Reads text aloud in a saved voice, as an .mp3. Give `text`, or `transcript_file` (a transcript or any text
     file; "[12.5s]" times are not read). Saved as "<name> (<voice> voice).mp3" next to the file, or for text in
-    Documents/VideoAudioAgents/Speech/ named after its first words (or output_name). English, Hindi, French and Spanish are spoken directly in the voice;
+    `folder` (if given) or Documents/VideoAudioAgents/Speech/, named after its first words (or output_name). English, Hindi, French and Spanish are spoken directly in the voice;
     Kannada and Tamil are read by an online reader voice and then changed into it (a weaker match).
     speed: little_slower (default, sounds most natural), slower, as_made. Slow: about 5 to 8 seconds of work per
     second of speech. Returns {output_file, seconds}."""
     return json.dumps(await progress.run(ctx, speech.speak, voice, language, speed, text, transcript_file,
-                                         output_name))
+                                         output_name, folder))
 
 
 @mcp.tool()

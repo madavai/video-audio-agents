@@ -28,15 +28,15 @@ PAUSE = 0.4  # seconds between sentences
 
 
 def speak(job, voice: str, language: str, speed: str = "little_slower", text: str | None = None,
-          transcript_file: str | None = None, output_name: str | None = None) -> dict:
+          transcript_file: str | None = None, output_name: str | None = None, folder: str | None = None) -> dict:
     """Reads text, or a transcript or any text file (its "[12.5s]" times are left out), aloud in the voice.
-    Saved next to the file, or in Documents/VideoAudioAgents/Speech/ for text."""
+    Saved next to the file; text in `folder`, or else in Documents/VideoAudioAgents/Speech/."""
     check_language(language)
     if transcript_file:
         source = existing(transcript_file)
         words, folder, name = plain_text(source.read_text(encoding="utf-8")), source.parent, source.stem
     else:
-        words, folder = plain_text(text or ""), paths.output_root() / "Speech"
+        words, folder = plain_text(text or ""), Path(folder) if folder else paths.output_root() / "Speech"
         # Named after its first words, so several readings can be told apart.
         name = paths.safe_name(" ".join(re.split(r"[.!?।]", words)[0].split()[:6]), "Speech", limit=40)
     if not words:

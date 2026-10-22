@@ -98,7 +98,7 @@ What you get:
 
 | You ask for | File |
 |---|---|
-| reading aloud | `<name> (<voice> voice).mp3` next to the file read; for text you typed, `<its first words> (<voice> voice).mp3` in `Documents/VideoAudioAgents/Speech/` |
+| reading aloud | `<name> (<voice> voice).mp3` next to the file read; for text you typed, `<its first words> (<voice> voice).mp3` in `Documents/VideoAudioAgents/Speech/` (or a folder you name) |
 | dubbing | `<title> (<language>) (<voice> voice).mp3` and the same name `.mp4` |
 | a changed voice | `<name> (<voice> voice).mp3` next to the original |
 
