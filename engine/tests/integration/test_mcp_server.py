@@ -68,3 +68,17 @@ def test_a_tool_error_reaches_claude_as_one_plain_sentence(private_data, tmp_pat
     assert results[0].is_error
     # The MCP SDK puts "Error executing tool transcribe: " in front; no traceback follows.
     assert results[0].content[0].text.endswith(f": There is no file at {tmp_path / 'nothing.mp3'}.")
+
+
+def test_a_title_over_60_characters_is_refused_naming_it(private_data, tmp_path):
+    folder = tmp_path / "Lesson"
+    folder.mkdir()
+    (folder / "Lesson.txt").write_text("x")
+    titles = "A short title\n" + "Long " * 13
+    calls = [("save_text", {"next_to": str(folder / "Lesson.txt"), "label": "titles", "text": titles})]
+    _, results, _ = anyio.run(talk_to_engine, private_data, calls)
+    assert results[0].is_error
+    assert results[0].content[0].text.endswith(': Title 2 ("Long Long Long Long Long Long Long Long...") is 64 '
+                                               "characters, over the 60 characters YouTube shows in full; "
+                                               "shorten it and save again.")
+    assert [p.name for p in folder.iterdir()] == ["Lesson.txt"]

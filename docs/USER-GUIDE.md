@@ -70,6 +70,29 @@ Long transcripts are translated in parts and then checked line by line against t
 
 **Glossary:** names and terms you want kept a certain way are saved in `Documents/VideoAudioAgents/glossary.md` and used in every translation. You can also edit that file yourself: one term per line, like `process map → keep in English`.
 
+## Titles, descriptions and posts
+
+> Write the YouTube titles, description, a LinkedIn post and an X thread for this video.
+>
+> An Instagram caption and a newsletter blurb for the lesson.
+>
+> Five quotes from the talk, with their times.
+
+Make the transcript first (the transcriber does it from the link). If you don't name the platforms, you get YouTube, LinkedIn and X. Everything is saved next to the transcript:
+
+| You ask for | File | What's in it |
+|---|---|---|
+| YouTube titles | `<title> (titles).txt` | 5 options, each at most 60 characters (what YouTube shows in full) |
+| YouTube description | `<title> (description).txt` | a 2-line summary, chapters with their times (starting at 00:00), and spots for your links |
+| YouTube tags | `<title> (tags).txt` | 10 to 15 tags on one line, ready to paste |
+| LinkedIn post | `<title> (linkedin).txt` | 150 to 250 words |
+| X thread | `<title> (x-thread).txt` | 5 to 8 numbered posts, each within X's 280-character limit |
+| Instagram caption | `<title> (instagram).txt` | at most 150 words, then hashtags |
+| newsletter blurb | `<title> (newsletter).txt` | a subject line and 80 to 120 words |
+| quotes | `<title> (quotes).txt` | 5 short quotes in the speaker's exact words, each with its time |
+
+The posts use the speaker's own words and examples: no invented facts or numbers, and no clickbait titles. They are drafts for you to read and edit; nothing is ever posted for you. Titles and X posts are checked for length when they are saved, so they paste without being cut off. To get posts in another language, ask for a translation of the post files.
+
 ## Troubleshooting
 
 - **"Run the setup"**: say "set up video audio agents". Running it again is always safe; it skips what is already there and continues broken downloads.
