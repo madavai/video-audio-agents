@@ -20,6 +20,7 @@ dependencies = [
     "librosa==0.11.0",
     "numpy>=1.24,<2",
     "psutil>=6",
+    "setuptools>=75,<81",  # pkg_resources, without which Chatterbox's watermark (marks speech as AI-made) won't load
 ]
 
 [project.scripts]

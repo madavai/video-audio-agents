@@ -22,7 +22,7 @@ After step 4, make_subtitles from the segments file translated_segments returned
 If the transcript has no timestamps, translate from the `.segments.json` instead: Read it and write one `[start s] translation` line per segment (start with one decimal, for example `[12.5s]`), save as in step 3, then step 4 and make_subtitles.
 
 ## Dubbing
-Make the translated segments file (as for subtitles), then hand over to the voice agent with that path and the video path.
+Make the translated segments file (as for subtitles), then hand over to the voice agent with that path, the language and the video's path. The voice agent speaks each translated line at its original time, so keep each line about as long as the original: no added explanations.
 
 ## Other texts
 Summaries, notes, chapters, posts or any text file: translate and save with save_text next to the original, label = the language name, same ext.

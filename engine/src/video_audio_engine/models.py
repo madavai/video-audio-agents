@@ -54,6 +54,9 @@ MODELS = {
 STANDARD = ["base", "small"]
 FULL = STANDARD + ["large-v3-turbo", "voice", "english", "multilingual"]
 FFMPEG_GB = 0.1  # about; the exact size comes with the download
+# The one big model in memory, kept for the next job: {name: model}. Speech-to-text and the voice models share it,
+# and each clears it before loading another, so the computer keeps enough memory.
+loaded = {}
 
 
 def models_dir() -> Path:

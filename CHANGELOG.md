@@ -2,6 +2,16 @@
 
 ## Unreleased (1.0.0)
 
+### Phase 5: voice and dubbing
+- New **voice** agent: saves a voice (from a recording, or recorded on the computer's microphone) only with the person's permission, reads text and transcripts aloud in that voice, dubs a video into another language, and changes the voice in an audio or video file.
+- `save_voice`, `record_voice`, `list_voices`: voices in `Documents/VideoAudioAgents/voices/`, the clearest 30 seconds of speech, never replaced. Recording starts when the person starts speaking, so no words are lost.
+- `speak`: English, Hindi, French and Spanish in the saved voice (Chatterbox, on the computer); Kannada and Tamil read by a Microsoft reader voice and then changed into it. A little slower by default, as the models talk fast.
+- `speak_timed` (dubbing): each translated line starts when the original line did; a line too long for its time is sped up at most 15%, and any that still run over are reported. `merge_audio_video` then puts it under the video.
+- `change_voice`: the same words and timing in another voice; silence stays silence.
+- One big model in memory at a time: speech-to-text and the three voice models let each other go before loading.
+- Fixed before it reached anyone: the voice models' watermark (which marks speech as made by AI) failed to load in the engine, and the Hindi, French and Spanish model fetched a Chinese word list from the internet every time it loaded (it would have failed offline).
+- The transcriber and translator hand over to the voice agent for dubbing.
+
 ### Phase 4: translator
 - New **translator** agent: transcripts, notes and any text into another language, saved next to the original as `<name> (<language>).txt`; long transcripts in parts of about 150 lines.
 - Translated subtitles: `translated_segments` pairs the translated lines with the original timings and refuses an incomplete translation, naming the missing lines, so nothing is lost; then `make_subtitles` makes `<name> (<language>).srt`.
