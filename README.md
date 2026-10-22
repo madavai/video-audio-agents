@@ -1,18 +1,26 @@
 # Video Audio Agents
 
-Paste a link, get the video, the audio, a transcript, subtitles, a translation, a dubbed version in your own voice, and posts to share it. Four agents for Claude Code, the Claude desktop app and Madav. Free beyond your Claude or Madav subscription: everything runs on your own computer.
-
-## Install
-
 Paste this into Claude Code or Madav chat:
 
 > Install https://github.com/madavai/video-audio-agents and set it up.
 
-Claude installs the plugin, then runs the setup (about 3 GB of downloads, once). For voice and dubbing straight away, say "set up video audio agents with voice" instead (about 10 GB).
+Then paste a link and get the video, the audio, a transcript, subtitles, notes, clips, a translation, a dubbed
+version in a saved voice, and drafts of posts to share it. Four helpers for Claude Code, the Claude desktop app and
+Madav, running on your own computer: free beyond your Claude or Madav subscription.
 
-**Claude desktop app (regular chat):** Customize → Plugins → Add → paste `madavai/video-audio-agents` → Install. Then say "set up video audio agents".
+## Install
 
-**Developers:** `git clone https://github.com/madavai/video-audio-agents`, `cd video-audio-agents`, then `claude --plugin-dir plugins/video-audio-agents` and say "set up video audio agents" once. The plugin itself is the `plugins/video-audio-agents` folder; the rest of the repository (build plan, tests, CI) is for building it and is not installed.
+Claude installs the plugin, then runs the setup: about 3 GB of downloads, once. For voice and dubbing straight away,
+say "set up video audio agents with voice" instead (about 10 GB). If Claude asks you to restart first, close Claude
+Code, open it again and say "set up video audio agents".
+
+**Claude desktop app (regular chat):** Customize → Plugins → Add → paste `madavai/video-audio-agents` → Install.
+Then say "set up video audio agents".
+
+**Developers:** `git clone https://github.com/madavai/video-audio-agents`, `cd video-audio-agents`, then
+`claude --plugin-dir plugins/video-audio-agents` and say "set up video audio agents" once. The plugin itself is the
+`plugins/video-audio-agents` folder; the rest of the repository (build plan, tests, CI) is for building it and is
+not installed.
 
 ### For Claude: how to install this
 
@@ -20,25 +28,36 @@ When someone asks you to install this repository, do not clone it. Run:
 
 1. `claude plugin marketplace add madavai/video-audio-agents`
 2. `claude plugin install video-audio-agents@madavai --scope user`
-3. Then run this plugin's **setup** skill (standard, or full if they asked for voice). If the skill isn't available yet in this session, ask the person to restart Claude Code and say "set up video audio agents".
+3. Then run this plugin's **setup** skill (standard, or full if they asked for voice). If the skill isn't available
+   yet in this session, ask the person to restart Claude Code and say "set up video audio agents".
 
 ## What you can ask
 
-> Download the video of this lesson.
+**Downloads, transcripts, subtitles, notes and clips** (the transcriber)
+
+> Download the video of this lesson: https://...
 >
 > Transcript of these two links, no timestamps, with chapters and a summary.
 >
-> Translate it to Kannada. · Dub it into Hindi in my voice.
+> Subtitles for this video. · Cut 01:00 to 01:30 out of it, with captions.
+
+**Translations** (the translator)
+
+> Translate it to Kannada. · Hindi subtitles for this video.
+
+**Voices and dubbing** (the voice helper)
+
+> Save my voice from this recording. · Read the summary aloud in my voice.
 >
-> Make three Shorts from the best moments, with subtitles.
->
-> Write the YouTube title, description, a LinkedIn post and an X thread.
+> Dub this video into Hindi in my voice.
 
-Everything for one link goes into its own folder in `Documents/VideoAudioAgents/`. Nothing is ever overwritten: a second copy is saved as `name (2)`.
+**Titles and posts** (the publisher)
 
-## Status
+> Write the YouTube titles, description, a LinkedIn post and an X thread.
 
-Being built in phases ([build plan](docs/BUILD-PLAN.md)). Done so far: the install and setup, the **transcriber** (downloads, transcripts, subtitles, clips, summaries, chapters and notes), the **translator** (translations, translated subtitles, glossary), the **voice** agent (saved voices, reading aloud in a voice, dubbing, changing a voice) and the **publisher** (YouTube titles, description and tags, LinkedIn, X, Instagram and newsletter drafts, quote lines). Next is the 1.0 release; see the [changelog](CHANGELOG.md) and the [user guide](docs/USER-GUIDE.md).
+Everything for one link goes into its own folder in `Documents/VideoAudioAgents/`. Nothing is ever overwritten: a
+second copy is saved as `name (2)`. The [user guide](docs/USER-GUIDE.md) has every example, what each one makes, and
+what to do when something goes wrong.
 
 ## Updating
 
@@ -46,11 +65,22 @@ Say "update video audio agents". Or turn on auto-update: `/plugin` → Marketpla
 
 ## Limits
 
-- Runs on your computer (Windows first; Mac in version 1.1). Not available in claude.ai in a browser or on phones.
-- Voice work needs about 6 GB of free memory and is slow on an ordinary computer (5 to 8 seconds of work per second of audio).
+- Runs on your computer (Windows first; Mac is checked in version 1.1). Not available in claude.ai in a browser or
+  on phones.
+- Voice work needs about 6 GB of free memory and is slow on an ordinary computer (5 to 8 seconds of work per second
+  of speech). English, Hindi, French and Spanish are spoken directly in the saved voice; Kannada and Tamil are read
+  by an online reader voice first, so they match it less closely.
 - Copy-protected services (Netflix and similar) are not supported.
-- You are responsible for following the terms of the sites you download from. The voice agent only saves a voice that is yours or that you have permission to use.
-- The agents never post anything anywhere: posts are drafts for you to review.
+- You are responsible for following the terms of the sites you download from. The voice helper only saves a voice
+  that is yours or that you have permission to use.
+- The helpers never post anything anywhere: posts are drafts for you to review.
+- Coming in version 1.1: whole playlists, best-moment Shorts, search across transcripts, audio clean-up, speaker
+  labels, narration with music, podcast files, graphics-card speed-up and Mac.
+
+## Status
+
+Version 1.0: Wave 1 of the [build plan](docs/BUILD-PLAN.md) is complete. See the [changelog](CHANGELOG.md) for
+what changed, and [ADR 0001](docs/adr/0001-python-engine-as-plugin.md) for why it is built this way.
 
 ## Licence
 

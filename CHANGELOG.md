@@ -2,6 +2,21 @@
 
 The version goes up with every change people should receive: a phase adds one to the middle number, a fix to the last. 1.0.0 is the release, after Phase 7.
 
+## 1.0.0
+
+Release 1.0 (Phase 7): Wave 1 is complete. Paste a link, or point at a recording, and get the video, the audio, a transcript, subtitles, notes, clips, a translation, a dubbed version in a saved voice and drafts of posts, all made on your own computer by four helpers: the transcriber, the translator, the voice helper and the publisher.
+
+### Release 1.0
+- The user guide is complete: install, first use, every helper with examples and what each makes, what stays on your computer, updating, uninstalling, limits and troubleshooting.
+- The README leads with the one-sentence install, then examples for each helper and the limits.
+- The downloader (yt-dlp) is updated to its newest version (2026.10.21), as at every release, so sites that changed since August download again.
+- A decision record (`docs/adr/0001-python-engine-as-plugin.md`) explains why the engine is Python inside a Claude Code plugin, and the five choices that changed during the build.
+- The build plan now matches what was built; the two reference apps the engine was ported from are removed, as planned for the release.
+
+### Fixes
+- After the very first setup, a restart could still show the engine as not connected: the engine can't start while the setup is installing it, and Claude Code then leaves a server that failed switched off for up to 15 minutes (found while testing the release from GitHub). The setup's closing message and the user guide now say what to do: in `/mcp`, choose `engine` and pick Reconnect, or wait 15 minutes and restart.
+- Dubbing could skip the check that no translated line is lost: asked to translate a timing file (`.segments.json`), the translator wrote the translated timing file itself instead of letting `translated_segments` build and check it (found dubbing a NASA video into Hindi; no line was lost that time). The translator now always translates the timestamped transcript next to it and lets `translated_segments` check it, which also keeps the times exactly as the engine wrote them.
+
 ## 0.6.0
 
 Phase 5: voice and dubbing. All four agents are now in place; the 1.0 release (Phase 7) is next.
