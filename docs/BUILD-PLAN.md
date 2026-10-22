@@ -61,57 +61,64 @@ Every link can give any mix of **video (.mp4)**, **audio (.mp3)**, **transcript 
 ## 3. Repository structure (Claude Code plugin best practice)
 
 ```
-video-audio-agents/
+video-audio-agents/                  # the repository = the marketplace
 ├── .claude-plugin/
-│   ├── plugin.json              # name, version, description, author, keywords; the engine MCP server (see §7)
-│   └── marketplace.json         # this repo is its own marketplace (one plugin, source ".")
-├── agents/
-│   ├── transcriber.md
-│   ├── translator.md
-│   ├── voice.md
-│   └── publisher.md
-├── skills/
-│   └── setup/
-│       └── SKILL.md             # first-run setup Claude performs itself (standard or full)
-├── engine/                      # the Python MCP server
-│   ├── pyproject.toml
-│   ├── uv.lock                  # committed: exact versions
-│   ├── .python-version          # 3.11
-│   ├── src/video_audio_engine/
-│   │   ├── __init__.py
-│   │   ├── server.py            # tool definitions only; each a few lines calling a module below
-│   │   ├── paths.py             # output folders, free-name helper, data folder
-│   │   ├── progress.py          # percent + message → MCP progress notification
-│   │   ├── models.py            # which models exist, where they live, download with progress
-│   │   ├── media.py             # fetch_media, list_links (yt-dlp)
-│   │   ├── browser.py           # login pages: open in Edge/Chrome, catch the stream, export cookies
-│   │   ├── transcribe.py        # faster-whisper; .txt + .segments.json
-│   │   ├── subtitles.py         # .srt/.vtt from segments; burn-in
-│   │   ├── clips.py             # cut, vertical crop, merge audio into video
-│   │   ├── audio.py             # loudness, silence trim, music mix, podcast export
-│   │   ├── texts.py             # save_text (translations, summaries, posts), search_texts
-│   │   ├── voices.py            # save_voice, record_voice, list_voices, best-10-seconds sample
-│   │   ├── speech.py            # speak, speak_timed, change_voice, tempo, pronunciation list
-│   │   ├── speakers.py          # (Wave 2) who-said-what labels
-│   │   └── setup_check.py       # check_setup
-│   └── tests/
-│       ├── unit/
-│       ├── integration/         # real tools against a local HTTP server with media generated at test time
-│       └── fixtures/            # one short public-domain speech WAV; everything else generated
+│   └── marketplace.json             # this repo is its own marketplace (one plugin, source "./plugins/video-audio-agents")
+├── plugins/
+│   └── video-audio-agents/          # the plugin: the only folder copied to people's computers
+│       ├── .claude-plugin/
+│       │   └── plugin.json          # name, version, description, author, keywords; the engine MCP server (see §7)
+│       ├── agents/
+│       │   ├── transcriber.md
+│       │   ├── translator.md
+│       │   ├── voice.md
+│       │   └── publisher.md
+│       ├── skills/
+│       │   └── setup/
+│       │       ├── SKILL.md         # first-run setup Claude performs itself (standard or full)
+│       │       └── install.py       # its install steps, with the engine's environment in the data folder
+│       └── engine/                  # the Python MCP server
+│           ├── pyproject.toml
+│           ├── uv.lock              # committed: exact versions
+│           ├── .python-version      # 3.11
+│           └── src/video_audio_engine/
+│               ├── __init__.py
+│               ├── server.py        # tool definitions only; each a few lines calling a module below
+│               ├── paths.py         # output folders, free-name helper, data folder
+│               ├── progress.py      # percent + message → MCP progress notification
+│               ├── models.py        # which models exist, where they live, download with progress
+│               ├── media.py         # fetch_media, list_links (yt-dlp)
+│               ├── browser.py       # login pages: open in Edge/Chrome, catch the stream, export cookies
+│               ├── transcribe.py    # faster-whisper; .txt + .segments.json
+│               ├── subtitles.py     # .srt/.vtt from segments; burn-in
+│               ├── clips.py         # cut, vertical crop, merge audio into video
+│               ├── audio.py         # loudness, silence trim, music mix, podcast export
+│               ├── texts.py         # save_text (translations, summaries, posts), search_texts
+│               ├── voices.py        # save_voice, record_voice, list_voices, best-10-seconds sample
+│               ├── speech.py        # speak, speak_timed, change_voice, tempo, pronunciation list
+│               ├── speakers.py      # (Wave 2) who-said-what labels
+│               └── setup_check.py   # check_setup
+├── tests/                           # the engine's tests (settings in pytest.ini)
+│   ├── unit/
+│   ├── integration/                 # real tools against a local HTTP server with media generated at test time
+│   └── fixtures/                    # one short public-domain speech WAV; everything else generated
+├── pytest.ini
 ├── docs/
-│   ├── BUILD-PLAN.md            # this file
-│   ├── USER-GUIDE.md            # plain English: install, first use, examples, troubleshooting
+│   ├── BUILD-PLAN.md                # this file
+│   ├── USER-GUIDE.md                # plain English: install, first use, examples, troubleshooting
 │   ├── adr/0001-python-engine-as-plugin.md
-│   └── reference/               # (temporary) the two proven .pyw apps to port from
-├── .github/workflows/ci.yml     # tests on windows-latest and ubuntu-latest
-├── CLAUDE.md                    # rules for Claude Code in this repo (§14)
-├── README.md                    # one-sentence install first, then examples and limits
+│   └── reference/                   # (temporary) the two proven .pyw apps to port from
+├── .github/workflows/ci.yml         # tests on windows-latest and ubuntu-latest
+├── CLAUDE.md                        # rules for Claude Code in this repo (§14)
+├── README.md                        # one-sentence install first, then examples and limits
 ├── CHANGELOG.md
-├── LICENSE                      # MIT
-└── .gitignore                   # engine/.venv, models, browser profiles, outputs
+├── LICENSE                          # MIT
+└── .gitignore                       # .venv, models, browser profiles, outputs
 ```
 
-Per the Claude Code docs: `.claude-plugin/` holds only `plugin.json` and `marketplace.json`; `agents/` and `skills/` sit at the root. There is no root `.mcp.json` (§7 says why). Nothing generated or downloaded is committed.
+Per the Claude Code docs: a plugin's `.claude-plugin/` holds only `plugin.json`, with `agents/` and `skills/` beside it; the marketplace's `.claude-plugin/` holds `marketplace.json`. There is no `.mcp.json` at the repo root (§7 says why). Nothing generated or downloaded is committed.
+
+**Layout change (version 0.5.0).** Until then the repo root was the plugin (marketplace source `"."`). Claude Code copies a plugin's whole folder to each person's computer, so everyone also received the build plan, the reference apps, the tests and the CI files. The plugin now has its own folder, `plugins/video-audio-agents/`, and everything only builders need stays at the root, outside what is copied. The engine's Python environment (about 3 GB) also moved, from `engine/.venv` inside the plugin to `${CLAUDE_PLUGIN_DATA}/venv`: the installed plugin folder is replaced on every update, while the data folder is kept (§7).
 
 ---
 
@@ -192,12 +199,12 @@ Shared rules in `speech.py`: one big model in memory at a time (voice / english 
 
 ## 7. Plugin wiring (verified against the Claude Code docs)
 
-`.claude-plugin/plugin.json`, with the engine declared inline under `mcpServers` (`${CLAUDE_PLUGIN_ROOT}` and `${CLAUDE_PLUGIN_DATA}` are substituted in `command`, `args`, `env`):
+`plugins/video-audio-agents/.claude-plugin/plugin.json`, with the engine declared inline under `mcpServers` (`${CLAUDE_PLUGIN_ROOT}` and `${CLAUDE_PLUGIN_DATA}` are substituted in `command`, `args`, `env`):
 
 ```json
 {
   "name": "video-audio-agents",
-  "version": "1.0.0",
+  "version": "0.5.0",
   "description": "Download, transcribe, translate, dub, voice and publish: four agents for video and audio links.",
   "author": { "name": "Madav", "url": "https://github.com/madavai" },
   "homepage": "https://github.com/madavai/video-audio-agents",
@@ -209,7 +216,7 @@ Shared rules in `speech.py`: one big model in memory at a time (voice / english 
       "type": "stdio",
       "command": "uv",
       "args": ["run", "--frozen", "--quiet", "--project", "${CLAUDE_PLUGIN_ROOT}/engine", "video-audio-engine"],
-      "env": { "VAA_DATA": "${CLAUDE_PLUGIN_DATA}" },
+      "env": { "VAA_DATA": "${CLAUDE_PLUGIN_DATA}", "UV_PROJECT_ENVIRONMENT": "${CLAUDE_PLUGIN_DATA}/venv" },
       "timeout": 14400000
     }
   }
@@ -224,11 +231,11 @@ Shared rules in `speech.py`: one big model in memory at a time (voice / english 
 {
   "name": "madavai",
   "owner": { "name": "Madav", "url": "https://github.com/madavai" },
-  "plugins": [{ "name": "video-audio-agents", "source": ".", "description": "Download, transcribe, translate, dub, voice and publish agents." }]
+  "plugins": [{ "name": "video-audio-agents", "source": "./plugins/video-audio-agents", "description": "Download, transcribe, translate, dub, voice and publish agents." }]
 }
 ```
 
-Facts relied on: `mcpServers` in `plugin.json` takes inline servers keyed by name and is loaded together with any root `.mcp.json`, so the repo must not have one; `claude plugin validate .` checks the entry; `${CLAUDE_PLUGIN_DATA}` is created on first use, kept across updates, removed on uninstall unless `--keep-data`; `timeout` is a hard 4-hour limit per call (one link per call); progress notifications keep the 30-minute idle limit from firing; plugin agent files ignore `mcpServers`, `hooks`, `permissionMode`; the whole-server tool pattern ends in `__*`.
+Facts relied on: `mcpServers` in `plugin.json` takes inline servers keyed by name and is loaded together with any root `.mcp.json`, so the repo must not have one; `claude plugin validate .` checks the marketplace and `claude plugin validate plugins/video-audio-agents` the plugin (both with `--strict`); the version Claude Code compares is `plugin.json`'s (it wins over a marketplace entry's, so only plugin.json sets it), and people get an update only when it changes; `${CLAUDE_PLUGIN_ROOT}` is the installed copy of this version, replaced on every update, so state never goes there; uv's `UV_PROJECT_ENVIRONMENT` puts the engine's environment at the given absolute path instead of `engine/.venv`; `${CLAUDE_PLUGIN_DATA}` is created on first use, kept across updates, removed on uninstall unless `--keep-data`; `timeout` is a hard 4-hour limit per call (one link per call); progress notifications keep the 30-minute idle limit from firing; plugin agent files ignore `mcpServers`, `hooks`, `permissionMode`; the whole-server tool pattern ends in `__*`.
 
 **Why `uv` is the command:** one small program, same on Windows and Mac, installs the pinned Python itself and the exact locked versions. The setup skill installs it. Phase 1 tests on Windows that Claude Code finds `uv` as `uv.exe`; if not, the command becomes the full path to `uv.exe` written by the setup skill.
 
@@ -242,11 +249,11 @@ Facts relied on: `mcpServers` in `plugin.json` takes inline servers keyed by nam
 
 Claude runs `claude plugin marketplace add madavai/video-audio-agents`, then `claude plugin install video-audio-agents@madavai --scope user`, reloads, and runs the setup skill. The person approves once. Even if they say "clone", Claude installs it this way; no manual clone.
 
-Claude desktop app (regular chat): Customize → Plugins → Add → paste `madavai/video-audio-agents` → Install, then "set up video audio agents". Developers: `git clone …` then `claude --plugin-dir .`.
+Claude desktop app (regular chat): Customize → Plugins → Add → paste `madavai/video-audio-agents` → Install, then "set up video audio agents". Developers: `git clone …`, then `claude --plugin-dir plugins/video-audio-agents` from the clone.
 
 ### What gets downloaded, and from where
 
-Nothing large is in the repo. The repo is code only (a few hundred KB). Everything below lands in `${CLAUDE_PLUGIN_DATA}` or the engine's private environment, with progress shown, and is reused forever after:
+Nothing large is in the repo. The repo is code only (a few hundred KB). Everything below lands in `${CLAUDE_PLUGIN_DATA}` (the engine's private environment is its `venv` folder; uv keeps its own download cache), with progress shown, and is reused forever after:
 
 | Item | Size | Source | When |
 |---|---|---|---|
@@ -271,7 +278,7 @@ Frontmatter `allowed-tools: Bash(uv:*), Bash(powershell:*), Bash(curl:*)`; uses 
 - **Full** ("set up video audio agents with voice"): also pre-downloads the three Chatterbox models and `large-v3-turbo`. About 10 GB. Voice then works immediately with no wait on first use.
 
 1. `uv --version`; if missing: Windows `powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"`, macOS `curl -LsSf https://astral.sh/uv/install.sh | sh`.
-2. `uv sync --frozen --project <plugin>/engine`.
+2. `uv sync --frozen --project <plugin>/engine` with `UV_PROJECT_ENVIRONMENT=<data>/venv`, the environment the server uses. Steps 2 and 3 run through the skill's `install.py <step> <data>` (standard library only, started with `uv run --no-project`), which sets that variable, so the commands are plain `uv` commands in Bash and PowerShell alike.
 3. `uv run --project <plugin>/engine video-audio-engine --warm standard|full` (downloads the models for the chosen mode, printing each name, size and progress).
 4. States what was installed and the sizes, where files are saved, and reloads so `/mcp` shows `engine` connected.
 5. On any failure: the exact error in plain words and the log path. Re-running setup is always safe; it skips what exists.
@@ -437,7 +444,7 @@ List the files. Say they are drafts to review before posting.
 
 ---
 
-## 10. Dependencies (pinned in `engine/pyproject.toml`, locked in `uv.lock`)
+## 10. Dependencies (pinned in `plugins/video-audio-agents/engine/pyproject.toml`, locked in `uv.lock`)
 
 | Package | Purpose | Pin |
 |---|---|---|
@@ -492,7 +499,7 @@ Wave 1:
 7. Clip 01:00–01:30 with captions.
 8. Publisher: titles, description, LinkedIn post, X thread from one transcript.
 9. Esc during a transcription → stops, no partial files.
-10. Clone + `claude --plugin-dir .` → same agents.
+10. Clone + `claude --plugin-dir plugins/video-audio-agents` → same agents.
 
 Wave 2:
 11. Playlist of 3 → 3 folders. 12. "Best moments" → 3 vertical subtitled Shorts. 13. Narrate a blog post with intro music → podcast mp3 with chapters. 14. "Where did he talk about X" → file and time. 15. Speaker labels on a two-person clip. 16. GPU PC: transcription ≥ 5× faster than CPU. 17. Kannada cloning via IndicF5 sounds closer than the reader route.

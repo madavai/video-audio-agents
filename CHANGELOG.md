@@ -1,13 +1,10 @@
 # Changelog
 
-## Unreleased (1.0.0)
+The version goes up with every change people should receive: a phase adds one to the middle number, a fix to the last. 1.0.0 is the release, after Phase 7.
 
-### Phase 6: publisher
-- New **publisher** agent: from a transcript (and its chapters or summary), drafts of YouTube title options, a description with chapters, tags, a LinkedIn post, an X thread, an Instagram caption, a newsletter blurb and quote lines with their times, each saved next to the transcript as `<name> (<label>).txt`. The speaker's own words, no invented facts or numbers, no clickbait; drafts only, never posted.
-- `save_text` refuses a YouTube title over 60 characters (label `titles`) or an X post over 280 (label `x-thread`, counted the way X counts, emoji and Chinese as two), naming the one to shorten; nothing is saved until all fit. Added titles or posts are checked too.
+## 0.6.0
 
-### Fixes
-- Opening Claude Code inside the repository folder no longer shows a failed `engine` server. The engine is now declared in the plugin manifest instead of a root `.mcp.json`; installing the plugin and `claude --plugin-dir` work as before.
+Phase 5: voice and dubbing. All four agents are now in place; the 1.0 release (Phase 7) is next.
 
 ### Phase 5: voice and dubbing
 - New **voice** agent: saves a voice (from a recording, or recorded on the computer's microphone) only with the person's permission, reads text and transcripts aloud in that voice, dubs a video into another language, and changes the voice in an audio or video file.
@@ -17,10 +14,31 @@
 - Dubbing speaks a very short line together with the next one, and trims the faint noise the voice models leave after the words: on a real NASA video, short Hindi lines spoken alone came out with babble after the words, long silences or a lost last word, which pushed the dub seconds out of step. Lines without words (a "…" over music) stay silent.
 - `change_voice`: the same words and timing in another voice; silence stays silence.
 - One big model in memory at a time: speech-to-text and the three voice models let each other go before loading, and a second voice or transcript job waits for the first to finish.
-- Fixed before it reached anyone: the voice models' watermark (which marks speech as made by AI) failed to load in the engine, and the Hindi, French and Spanish model fetched a Chinese word list from the internet every time it loaded (it would have failed offline).
 - The transcriber and translator hand over to the voice agent for dubbing.
-- Fixed: the engine's log file (`engine.log`) stayed empty, although error messages point to it: the MCP SDK sets up logging first, which silently cancelled the engine's own setup.
-- Fixed: a clip without captions couldn't be cut from videos that carry a timecode track, as professionally exported videos often do (found on a NASA video). Clips now copy only the picture and the sound.
+- Speech made by the voice models keeps its inaudible watermark (a mark that it was made by AI), and voice work needs no internet except for the Kannada and Tamil reader voices. Two problems in the voice library stood in the way: the watermark didn't load without a small helper package, and the Hindi, French and Spanish model fetched a Chinese word list from the internet on every first load.
+
+### Fixes
+- The engine's log file (`engine.log`) stayed empty, although error messages point to it: the MCP SDK sets up logging first, which silently cancelled the engine's own setup.
+- A clip without captions couldn't be cut from videos that carry a timecode track, as professionally exported videos often do (found on a NASA video). Clips now copy only the picture and the sound.
+
+## 0.5.0
+
+Phases 1 to 4 and 6. Voice and dubbing (Phase 5) come next, as 0.6.0.
+
+### Packaging
+- The version now follows the build. It said 1.0.0 from the start, and Claude Code only offers an update when the version changes, so nobody who installed early would ever have received a later phase.
+- The plugin has its own folder in the repository, `plugins/video-audio-agents/` (agents, setup skill, engine), and the marketplace points there. Installing copies only that folder: no more build plan, reference apps, tests or CI files on people's computers. The engine's tests moved to `tests/` at the repository root. Developers load the plugin with `claude --plugin-dir plugins/video-audio-agents`.
+- The engine's private Python (about 3 GB) is kept in the plugin's data folder (`venv`), no longer inside the installed plugin, which Claude Code replaces on every update. Run the setup once after updating to this version: it builds the engine there, mostly from files uv already has, then skips it on later updates.
+
+### Phase 6: publisher
+- New **publisher** agent: from a transcript (and its chapters or summary), drafts of YouTube title options, a description with chapters, tags, a LinkedIn post, an X thread, an Instagram caption, a newsletter blurb and quote lines with their times, each saved next to the transcript as `<name> (<label>).txt`. The speaker's own words, no invented facts or numbers, no clickbait; drafts only, never posted.
+- `save_text` refuses a YouTube title over 60 characters (label `titles`) or an X post over 280 (label `x-thread`, counted the way X counts, emoji and Chinese as two), naming the one to shorten; nothing is saved until all fit. Added titles or posts are checked too.
+
+### Fixes
+- Opening Claude Code inside the repository folder no longer shows a failed `engine` server. The engine is now declared in the plugin manifest instead of a root `.mcp.json`; installing the plugin and `claude --plugin-dir` work as before.
+- Download and transcript requests now go to the **transcriber** agent instead of being handled in the main conversation (its description says "Use proactively", like the translator's and publisher's). It also takes a recording already on the computer, and a folder to save into when one is named.
+- Wikipedia and Wikimedia Commons file links (`…/wiki/Special:FilePath/…`, `…/wiki/File:…`, `upload.wikimedia.org`) now download instead of failing with "HTTP Error 403: Forbidden". Wikimedia turns away programs that pretend to be a browser, so the engine now names itself to Wikimedia sites only; every other site is downloaded exactly as before.
+- A Wikipedia file page link (`…/wiki/File:…`, or `Datei:`, `Fichier:`… in other languages) names the folder and files after the file, as Commons does: `Roosevelt Pearl Harbor` instead of `FileRoosevelt Pearl Harbor.ogg - Wikipedia`.
 
 ### Phase 4: translator
 - New **translator** agent: transcripts, notes and any text into another language, saved next to the original as `<name> (<language>).txt`; long transcripts in parts of about 150 lines.

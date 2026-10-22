@@ -25,6 +25,8 @@ Paste one or more links and say what you want. Examples:
 > Subtitles for this video.
 >
 > Cut 01:00 to 01:30 out of this video, with captions.
+>
+> Transcript of the recording C:\Users\me\Videos\lesson.mp4.
 
 What you get, for each link, in its own folder in `Documents/VideoAudioAgents/<title>/`:
 
@@ -37,6 +39,8 @@ What you get, for each link, in its own folder in `Documents/VideoAudioAgents/<t
 | clean transcript (no "um"s, proper punctuation) | `<title> (clean).txt` |
 | subtitles | `<title>.srt` (or `.vtt` for the web): at most 2 short lines, at most 6 seconds each |
 | a clip | `<title> (clip 1-00 to 1-30).mp4`, or `... (captions).mp4` with the captions burned into the picture |
+
+A recording already on your computer works the same way: its transcript and notes are saved next to it. To save downloads somewhere else, name the folder ("... and save it in D:\Lessons").
 
 A `<title>.segments.json` file is also saved next to every transcript. It holds the timings that subtitles and dubbing are made from; you can ignore it.
 
@@ -125,10 +129,15 @@ Make the transcript first (the transcriber does it from the link). If you don't 
 
 The posts use the speaker's own words and examples: no invented facts or numbers, and no clickbait titles. They are drafts for you to read and edit; nothing is ever posted for you. Titles and X posts are checked for length when they are saved, so they paste without being cut off. To get posts in another language, ask for a translation of the post files.
 
+## Updating
+
+Say "update video audio agents". Claude gets the new version, runs the setup again and asks you to restart Claude Code. The engine, ffmpeg, the models and your browser logins are kept in the plugin's data folder, so an update only adds what changed instead of starting over. Uninstalling the plugin removes that folder too.
+
 ## Troubleshooting
 
 - **"Run the setup"**: say "set up video audio agents". Running it again is always safe; it skips what is already there and continues broken downloads.
 - **A link fails:** the other links still run. Copy-protected services (Netflix and similar) are not supported.
+- **Wikipedia or Wikimedia Commons:** sound and video files download directly from the file's page or its file link; no browser window opens. The folder is named after the file (for example `Roosevelt Pearl Harbor`).
 - **No Edge or Chrome:** say "set up the login browser" to install one just for this (about 150 MB).
 - **The voice doesn't sound like you:** save a new sample: 20 to 30 seconds, closer to the microphone, in a quiet room, in the language you will use.
 - **"The microphone couldn't be used" or "Nothing was heard":** check the microphone is plugged in and allowed in Windows Settings → Privacy & security → Microphone.
