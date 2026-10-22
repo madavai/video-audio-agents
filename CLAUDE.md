@@ -17,6 +17,7 @@ Four Claude Code agents (transcriber, translator, voice, publisher), one setup s
 - Build in the order of docs/BUILD-PLAN.md; do not start a Wave 2 item during Wave 1.
 
 ## How the engine is put together
+- The `engine` MCP server is declared in `.claude-plugin/plugin.json` (`mcpServers`). Never add a root `.mcp.json`: Claude Code opened in this folder would read it as a project server without substituting `${CLAUDE_PLUGIN_ROOT}`, and it fails. To use the engine here, run `claude --plugin-dir .`.
 - `engine/src/video_audio_engine/server.py` holds the tool definitions only; each calls a module.
 - Slow tools run their work through `progress.run(ctx, work)`: it runs `work(job)` in a thread, sends progress at every 1%, and on Esc makes `job.report()` raise `Stopped` so the work can remove partial files.
 - Raise `ToolError("one plain sentence")` for failures the person should read; anything else is logged to `<data>/engine.log` and reported as "Something went wrong".

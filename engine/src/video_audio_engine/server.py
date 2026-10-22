@@ -57,7 +57,9 @@ def save_text(next_to: str, label: str, text: str, ext: Literal["txt", "md", "sr
     the file `next_to`, never overwriting. With an empty label it is saved under next_to's own name (for example
     <output_folder>/glossary.md). For long texts, save the first part, then pass the returned path as append_to
     for each later part. JSON next to a .segments.json file is saved as "<name> (<label>).segments.json" and
-    must be a list of {start, end, text}; appending extends the list. Returns {file}."""
+    must be a list of {start, end, text}; appending extends the list. Drafts with a length limit are refused,
+    naming the piece to shorten: label "titles" (one per line, each at most 60 characters) and label "x-thread"
+    (a blank line between posts, each at most 280 characters as X counts them). Returns {file}."""
     try:
         return json.dumps(texts.save_text(next_to, label, text, ext, append_to))
     except Exception as e:
