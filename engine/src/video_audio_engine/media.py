@@ -2,6 +2,7 @@
 import logging
 import tempfile
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import yt_dlp
 from mcp.server.mcpserver.exceptions import ToolError
@@ -13,6 +14,7 @@ from .setup_check import find_deno
 log = logging.getLogger("engine.media")
 KEEP = {"audio": [".mp3"], "video": [".mp4"], "both": [".mp4", ".mp3"]}  # the finished files per choice
 WHAT = {"audio": "the audio", "video": "the video", "both": "the video and audio"}
+AGENT = f"video-audio-agents (https://github.com/madavai/video-audio-agents) yt-dlp/{yt_dlp.version.__version__}"
 
 
 class ToLog:
@@ -54,11 +56,11 @@ def fetch_media(job, url: str, save: str, folder: str | None = None) -> dict:
     name = paths.free_name(target, short, [".mp4", ".mp3", ".txt", ".segments.json"])
     before = set(target.iterdir())
     with tempfile.TemporaryDirectory() as tmp:
-        opts = options(job, save, str(target / name), ffmpeg)
+        opts = options(job, save, str(target / name), ffmpeg) | {"http_headers": identify(stream)}
         if cookies:
             cookie_file = Path(tmp) / "cookies.txt"
             cookie_file.write_text(cookies, encoding="utf-8")
-            opts.update(cookiefile=str(cookie_file), http_headers={"Referer": referer})
+            opts.update(cookiefile=str(cookie_file), http_headers={**identify(stream), "Referer": referer})
         try:
             with yt_dlp.YoutubeDL(opts) as ydl:
                 ydl.download([stream])
@@ -78,8 +80,16 @@ def fetch_media(job, url: str, save: str, folder: str | None = None) -> dict:
 
 def read_link(url: str) -> str:
     """The title, if the downloader understands the link by itself (YouTube, Vimeo, direct files and many more)."""
-    with yt_dlp.YoutubeDL({"quiet": True, "noplaylist": True, "logger": ToLog(), **js_runtime()}) as ydl:
+    with yt_dlp.YoutubeDL({"quiet": True, "noplaylist": True, "logger": ToLog(), "http_headers": identify(url),
+                           **js_runtime()}) as ydl:
         return ydl.extract_info(url, download=False).get("title")
+
+
+def identify(url: str) -> dict:
+    """Wikimedia (Wikipedia, Commons) turns away programs that pretend to be a web browser and asks them to say who
+    they are. Every other site keeps the downloader's usual browser-like headers (an empty dict changes nothing)."""
+    host = urlsplit(url).hostname or ""
+    return {"User-Agent": AGENT} if host.endswith((".wikimedia.org", ".wikipedia.org")) else {}
 
 
 def options(job, save: str, base: str, ffmpeg: Path) -> dict:
