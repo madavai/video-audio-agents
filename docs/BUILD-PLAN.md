@@ -63,9 +63,8 @@ Every link can give any mix of **video (.mp4)**, **audio (.mp3)**, **transcript 
 ```
 video-audio-agents/
 ├── .claude-plugin/
-│   ├── plugin.json              # name, version, description, author, keywords
+│   ├── plugin.json              # name, version, description, author, keywords; the engine MCP server (see §7)
 │   └── marketplace.json         # this repo is its own marketplace (one plugin, source ".")
-├── .mcp.json                    # the plugin's MCP server: the engine (standard location, see §7)
 ├── agents/
 │   ├── transcriber.md
 │   ├── translator.md
@@ -112,7 +111,7 @@ video-audio-agents/
 └── .gitignore                   # engine/.venv, models, browser profiles, outputs
 ```
 
-Per the Claude Code docs: `.claude-plugin/` holds only `plugin.json` and `marketplace.json`; `agents/`, `skills/` and `.mcp.json` sit at the root. Nothing generated or downloaded is committed.
+Per the Claude Code docs: `.claude-plugin/` holds only `plugin.json` and `marketplace.json`; `agents/` and `skills/` sit at the root. There is no root `.mcp.json` (§7 says why). Nothing generated or downloaded is committed.
 
 ---
 
@@ -193,7 +192,7 @@ Shared rules in `speech.py`: one big model in memory at a time (voice / english 
 
 ## 7. Plugin wiring (verified against the Claude Code docs)
 
-`.claude-plugin/plugin.json`:
+`.claude-plugin/plugin.json`, with the engine declared inline under `mcpServers` (`${CLAUDE_PLUGIN_ROOT}` and `${CLAUDE_PLUGIN_DATA}` are substituted in `command`, `args`, `env`):
 
 ```json
 {
@@ -204,25 +203,20 @@ Shared rules in `speech.py`: one big model in memory at a time (voice / english 
   "homepage": "https://github.com/madavai/video-audio-agents",
   "repository": "https://github.com/madavai/video-audio-agents",
   "license": "MIT",
-  "keywords": ["transcribe", "youtube", "translate", "dubbing", "voice", "subtitles", "shorts", "social"]
-}
-```
-
-`.mcp.json` at the repo root (`${CLAUDE_PLUGIN_ROOT}` and `${CLAUDE_PLUGIN_DATA}` are substituted in `command`, `args`, `env`):
-
-```json
-{
+  "keywords": ["transcribe", "youtube", "translate", "dubbing", "voice", "subtitles", "shorts", "social"],
   "mcpServers": {
     "engine": {
       "type": "stdio",
       "command": "uv",
-      "args": ["run", "--frozen", "--project", "${CLAUDE_PLUGIN_ROOT}/engine", "video-audio-engine"],
+      "args": ["run", "--frozen", "--quiet", "--project", "${CLAUDE_PLUGIN_ROOT}/engine", "video-audio-engine"],
       "env": { "VAA_DATA": "${CLAUDE_PLUGIN_DATA}" },
       "timeout": 14400000
     }
   }
 }
 ```
+
+**Why not `.mcp.json` at the root:** Claude Code started inside the repo folder also reads a root `.mcp.json` as the project's own MCP config, where the two plugin variables are not substituted, so `engine` showed as failed ("Connection closed"). The manifest is read only when the folder is loaded as a plugin.
 
 `.claude-plugin/marketplace.json`:
 
@@ -234,7 +228,7 @@ Shared rules in `speech.py`: one big model in memory at a time (voice / english 
 }
 ```
 
-Facts relied on: `.mcp.json` at the plugin root; `${CLAUDE_PLUGIN_DATA}` is created on first use, kept across updates, removed on uninstall unless `--keep-data`; `timeout` is a hard 4-hour limit per call (one link per call); progress notifications keep the 30-minute idle limit from firing; plugin agent files ignore `mcpServers`, `hooks`, `permissionMode`; the whole-server tool pattern ends in `__*`.
+Facts relied on: `mcpServers` in `plugin.json` takes inline servers keyed by name and is loaded together with any root `.mcp.json`, so the repo must not have one; `claude plugin validate .` checks the entry; `${CLAUDE_PLUGIN_DATA}` is created on first use, kept across updates, removed on uninstall unless `--keep-data`; `timeout` is a hard 4-hour limit per call (one link per call); progress notifications keep the 30-minute idle limit from firing; plugin agent files ignore `mcpServers`, `hooks`, `permissionMode`; the whole-server tool pattern ends in `__*`.
 
 **Why `uv` is the command:** one small program, same on Windows and Mac, installs the pinned Python itself and the exact locked versions. The setup skill installs it. Phase 1 tests on Windows that Claude Code finds `uv` as `uv.exe`; if not, the command becomes the full path to `uv.exe` written by the setup skill.
 
