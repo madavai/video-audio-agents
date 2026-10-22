@@ -38,7 +38,7 @@ Everything for one link goes into its own folder in `Documents/VideoAudioAgents/
 
 ## Status
 
-Being built in phases ([build plan](docs/BUILD-PLAN.md)). Done so far: the install and setup, the **transcriber** (downloads, transcripts, subtitles, clips, summaries, chapters and notes) and the **translator** (translations, translated subtitles, glossary). Voice, dubbing and posts arrive in the next phases; see the [changelog](CHANGELOG.md) and the [user guide](docs/USER-GUIDE.md).
+Being built in phases ([build plan](docs/BUILD-PLAN.md)). Done so far: the install and setup, the **transcriber** (downloads, transcripts, subtitles, clips, summaries, chapters and notes), the **translator** (translations, translated subtitles, glossary) and the **publisher** (YouTube titles, description and tags, LinkedIn, X, Instagram and newsletter drafts, quote lines). Voice and dubbing arrive in the next phase; see the [changelog](CHANGELOG.md) and the [user guide](docs/USER-GUIDE.md).
 
 ## Updating
 
