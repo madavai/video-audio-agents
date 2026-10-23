@@ -157,7 +157,7 @@ Every tool:
 | `transcribe(file, accuracy, timestamps, delete_audio_after)` | accuracy ∈ fast / balanced / accurate (base / small / large-v3-turbo) | `{transcript_file, segments_file, language, lines, duration_seconds}` | `WhisperModel(<models folder>, device="cpu", compute_type="int8", cpu_threads=4)` in `BatchedInferencePipeline`, `batch_size=8`, `word_timestamps=True`. Lines are built from the word timings: a new line after a sentence end (once a second long), at a pause over 1 s, or before 12 s. **Changed in the build:** the plan had `cpu_threads=max(4, cores//2)` (12 threads crashed on a 24-core PC with a 40-minute lesson; 4 were as fast) and one line per segment (batched segment timings dropped words at chunk edges). Writes `.txt` (timestamps `[12.5s] text` or paragraphs) **and** `.segments.json` (start, end, text) used by subtitles, clips and dubbing, only when finished. Model cached per process. |
 | `make_subtitles(segments_file, format, max_chars?)` | format ∈ srt / vtt | `{subtitle_file, cues}` | Lines ≤ 42 chars, ≤ 2 lines, ≤ 6 s each. Works on translated segments too. |
 | `cut_clip(video_file, start, end, subtitle_file?)` | times `mm:ss` or seconds | `{clip_file}` | ffmpeg stream copy of picture and sound only (`-map 0:v? -map 0:a?`, so a timecode track can't break it) when no subtitles; re-encode with burned-in subtitles when given. |
-| `merge_audio_video(video_file, audio_file)` | | `{output_file}` | Replaces the video's audio track (dubbing). Pads or trims to the video length. |
+| `merge_audio_video(video_file, audio_file, segments_file?)` | | `{output_file}` | Puts the audio under the video. Pads or trims to the video length. **Added in 1.0.3:** with the dub's `segments_file`, only the voice is replaced: the original sound stays outside the spoken lines (0.25 s around each, 0.25 s fades), and under them the voice HTDemucs finds is subtracted, so the music and sound effects play on under the dub (`music.py`; the whole sound in 5-minute pieces with 10 s cross-fades; the mix is scaled down only if it would clip). Without it the whole sound is replaced (changing the voice in a video). |
 | `save_text(next_to, label, text, ext, append_to?)` | ext ∈ txt / md / srt / json | `{file}` | Saves `name (label).ext` beside `next_to`, or appends. Used for translations, summaries, chapters, posts, glossary (empty label = `next_to`'s own name). Refuses label `titles` over 60 characters a line and `x-thread` over 280 a post (X's counting), naming the piece. |
 | `translated_segments(segments_file, translated_file, dub_language)` | a translated `[12.5s] text` transcript | `{segments_file, lines}`, or for dubbing `{too_long, too_long_count, lines}` | **Added in the build** (planned: the translator writes the segments JSON itself). Pairs each translated line with the original segment by its time, saves `<translated name>.segments.json` with the original timings, and refuses an incomplete translation, naming the missing lines. A line saved again with the same time replaces the earlier one. **Added in 1.0.2:** with `dub_language`, lines that would take longer to say than their time (characters against `speech.PACE`, the language's measured characters a second) come back with how many characters fit, and nothing is saved until the translator has worded them shorter. |
 | `list_voices()` | — | `{voices, folder}` | From the voices folder. |
@@ -167,7 +167,7 @@ Every tool:
 | `speak_timed(segments_file, voice, language, speed)` | translated segments | `{output_file, seconds, lines, most_late, overruns, overrun_count}` | **Dubbing:** speaks each segment and places it at the segment's start time so the new audio lines up with the video; speeds a piece up slightly (≤ 1.15×) when it would overrun, and reports the rest. Added in the build: a line under 40 characters is spoken together with the next one (within 1.5 s), because the multilingual model garbles short lines; faint tails after the words are trimmed; lines without words stay silent. **Added in 1.0.2:** a take over 1.4 times the length its words need (`speech.PACE`) is cut at the longest silence between 0.8 and 1.3 times that length, where the Hindi model's babble or humming after the words starts (one Hindi take in five, most takes on some sentences); a take still under 0.6 or over 1.4 times is made again, up to 3 takes, keeping the closest; the dub returns `most_late`, the most any line starts after its time. |
 | `change_voice(file, voice, speed)` | speed default as_made | `{output_file, seconds}` | Chatterbox VC in pieces ≤ 20 s cut at quiet moments; silence kept as silence. |
 
-Shared rules: one big model in memory at a time (speech-to-text, voice, english, multilingual share `models.loaded`), freed before loading another, and one big-model job at a time (a second waits); best 10 seconds of a saved voice chosen by loudness window, normalised to 0.9 peak. Models load from their own folders (`from_local`), and libraries are kept from downloading on their own (the multilingual tokenizer's Chinese converter is switched off).
+Shared rules: one big model in memory at a time (speech-to-text, voice, english, multilingual and the music keeper share `models.loaded`), freed before loading another, and one big-model job at a time (a second waits); best 10 seconds of a saved voice chosen by loudness window, normalised to 0.9 peak. Models load from their own folders (`from_local`), and libraries are kept from downloading on their own (the multilingual tokenizer's Chinese converter is switched off).
 
 ### Wave 2 tools
 
@@ -266,6 +266,7 @@ Nothing large is in the repo. The repo is code only (a few hundred KB). Everythi
 | Chatterbox voice conversion | ~1 GB | Hugging Face (`ResembleAI/chatterbox`) | First voice job, or full setup |
 | Chatterbox English TTS | ~2 GB | same repo | First English speech, or full setup |
 | Chatterbox Multilingual | ~3 GB | same repo | First Hindi/French/Spanish speech, or full setup |
+| HTDemucs (music keeper for dubs, added in 1.0.3) | ~84 MB | Hugging Face (`adefossez/HTDemucs`) | First dub, or full setup |
 | Playwright Chromium | ~150 MB | Playwright | Only if no Edge/Chrome, on request |
 | Wave 2: CUDA torch, pyannote, IndicF5 | 2–4 GB | PyPI / Hugging Face | `--gpu`, `--speakers`, `--indic` on request |
 
@@ -399,7 +400,7 @@ check_setup. If voice models are missing, say the size (models_missing_gb) and t
 speak with voice, language (English, Kannada, Hindi, French, Spanish, Tamil) and speed (little_slower by default). For a transcript pass transcript_file. Kannada and Tamil use a reader voice first and then convert, so the match is weaker; say so when relevant.
 
 ## Dubbing
-Given a translated segments file and the video: speak_timed, then merge_audio_video. Tell them the dubbed video path, that timing follows the original speaker, and any overruns reported.
+Given a translated segments file and the video: speak_timed, then merge_audio_video with the same segments file (keeps the original music and sound effects). Tell them the dubbed video path, that timing follows the original speaker, and any overruns reported.
 
 ## Change the voice of an audio file
 change_voice. Same words and timing; only the voice changes.
@@ -472,6 +473,7 @@ List the files. Say they are drafts to review before posting.
 | `edge-tts` | Kannada/Tamil reader voices (online) | `>=7,<8` |
 | `sounddevice`, `soundfile`, `librosa`, `numpy` | recording, audio I/O, analysis | compatible with chatterbox's pins (`librosa==0.11.0`, `numpy<2`) |
 | `psutil` | free memory for `check_setup` (added in the build) | `>=6` |
+| `demucs` | takes the voice out of a video's sound so a dub keeps the music (added in 1.0.3); loads the pinned weights with `demucs.hf.load_safetensors_model`, never `get_model`. It asks for an older PyTorch on Intel Macs, which PyTorch 2.6 doesn't support anyway, so `[tool.uv] environments` leaves them out | `4.1.0` |
 | `setuptools` | `pkg_resources`, without which Chatterbox's watermark (Perth) fails to load and no Chatterbox model can be made (added in the build) | `>=75,<81` |
 | `mutagen` | mp3 tags and chapters (Wave 2; not added yet) | latest |
 | `pyannote.audio` | speaker labels (Wave 2, optional extra; not added yet) | latest |
@@ -490,7 +492,7 @@ Python `3.11` (`.python-version`). Entry point `[project.scripts] video-audio-en
 - fetch_media: direct mp3, direct mp4, HLS stream, same link twice → `(2)`, page without media → clear error, cancel midway → no partial files.
 - transcribe: mp3 and mp4 with the `base` ("fast") model on the bundled 10-second public-domain speech WAV → expected words present, both formats, `.segments.json` written, `(2)` on repeat, `delete_audio_after`.
 - Voice tools in CI run against a stand-in model (`tests/integration/test_speech.py`), so CI never downloads the multi-GB voice models.
-- make_subtitles → valid .srt (timing monotonic, ≤ 42 chars/line); cut_clip with and without burn-in → duration ≈ requested; merge_audio_video → video length kept.
+- make_subtitles → valid .srt (timing monotonic, ≤ 42 chars/line); cut_clip with and without burn-in → duration ≈ requested; merge_audio_video → video length kept; with a segments file, the original sound kept outside the lines and the voice gone under them (the real HTDemucs, 84 MB, cached in `.test-data`).
 - save_text: create then append.
 - models.py: a missing model is downloaded with progress and resumed after an interrupted download (simulated with a local server).
 - MCP end-to-end: start the server over stdio with the Python MCP client, list tools, call check_setup, fetch_media, transcribe; assert progress notifications arrive.

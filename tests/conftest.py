@@ -65,6 +65,13 @@ def media(ffmpeg, tmp_path_factory):
     make("-f", "lavfi", "-i", "testsrc=size=320x240:rate=25", "-i", "long.mp3", "-shortest",
          "-c:v", "libx264", "-g", "50", "-pix_fmt", "yuv420p", "-c:a", "aac", "long.mp4")  # a keyframe every 2 s
     make("-f", "lavfi", "-i", "sine=frequency=440:duration=180", "-b:a", "128k", "slow.mp3")
+    # A video narrated over music (a tone and soft noise throughout, the speech from 0:03), and a beep as its dub.
+    make("-f", "lavfi", "-i", "testsrc=size=320x240:rate=25:duration=20", "-f", "lavfi",
+         "-i", "sine=frequency=220:duration=20,volume=0.1", "-f", "lavfi",
+         "-i", "anoisesrc=color=pink:duration=20:amplitude=0.03:seed=1", "-i", speech, "-filter_complex",
+         "[3]adelay=3000|3000[s];[1][2][s]amix=inputs=3:normalize=0[a]", "-map", "0:v", "-map", "[a]",
+         "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", "narrated.mp4")
+    make("-f", "lavfi", "-i", "sine=frequency=880:duration=11,volume=0.05", "-af", "adelay=3000", "beep.mp3")
     # A lesson page whose video is added by a script, so only a real browser finds it.
     (folder / "lesson.html").write_text(
         "<html><head><title>Lesson one</title></head><body><video id=v controls></video><script>"

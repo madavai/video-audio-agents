@@ -1,11 +1,16 @@
 """cut_clip and merge_audio_video on media made by ffmpeg at test time."""
+import json
 import subprocess
+from pathlib import Path
 
 import anyio
+import numpy as np
 import pytest
 from mcp.server.mcpserver.exceptions import ToolError
 
-from video_audio_engine import clips, progress, subtitles
+from video_audio_engine import clips, models, progress, subtitles, voices
+
+FIXTURES = Path(__file__).parent.parent / "fixtures"
 
 
 def run(work, *args):
@@ -68,6 +73,61 @@ def test_new_audio_under_a_video_keeps_the_video_length(copy_of, with_models):
     assert second.endswith("talk (new audio).mp4")
     for output in (first, second):
         assert clips.probe_seconds(output) == pytest.approx(clips.probe_seconds(video), abs=0.15)
+
+
+def level(audio):
+    return 20 * np.log10(np.sqrt(np.mean(audio**2)) + 1e-9)
+
+
+def test_a_dub_keeps_the_music_and_replaces_only_the_voice(copy_of, with_models):
+    """The real music keeper (HTDemucs, 84 MB, kept in .test-data) on a video narrated over a tone and soft noise."""
+    video, dub = copy_of("narrated.mp4"), copy_of("beep.mp3")
+    lines = video.with_name("narrated (Hindi dubbing).segments.json")
+    lines.write_text(json.dumps([{"start": 3.3, "end": 13.8, "text": "And so, my fellow Americans."},
+                                 {"start": 15.0, "end": 15.5, "text": "…"}]), encoding="utf-8")  # no words: kept
+    output = run(clips.merge_audio_video, str(video), str(dub), str(lines))["output_file"]
+    assert output.endswith("narrated (new audio).mp4") and models.loaded.keys() == {"music"}
+    assert clips.probe_seconds(output) == pytest.approx(clips.probe_seconds(video), abs=0.15)
+    rate = 16000
+    original, result = voices.read_audio(video, rate), voices.read_audio(output, rate)
+    under = result - np.pad(voices.read_audio(dub, rate), (0, len(result)))[:len(result)]  # what plays under the dub
+    speech = np.pad(voices.read_audio(FIXTURES / "jfk.wav", rate), (3 * rate, len(result)))[:len(result)]
+    before, after, spoken = slice(0, int(2.4 * rate)), slice(int(14.7 * rate), None), slice(4 * rate, 13 * rate)
+    for kept in (before, after):  # nobody speaks: the original sound, as it was
+        assert level(result[kept] - original[kept]) < level(original[kept]) - 20
+    assert np.corrcoef(original[spoken], speech[spoken])[0, 1] > 0.9
+    assert np.corrcoef(under[spoken], speech[spoken])[0, 1] < 0.3  # the voice is gone...
+    assert level(under[spoken]) == pytest.approx(level(original[before]), abs=3)  # ...and the music plays on
+
+
+def test_a_dub_under_a_video_without_sound(copy_of, with_models, ffmpeg, monkeypatch):
+    monkeypatch.setattr(models, "loaded", {})
+    talk = copy_of("talk.mp4")
+    video, dub = talk.with_name("silent.mp4"), copy_of("beep.mp3")
+    subprocess.run([ffmpeg, "-loglevel", "error", "-i", str(talk), "-an", "-c", "copy", str(video)], check=True)
+    lines = video.with_name("lines.segments.json")
+    lines.write_text(json.dumps([{"start": 0.0, "end": 5.0, "text": "Hello."}]), encoding="utf-8")
+    output = run(clips.merge_audio_video, str(video), str(dub), str(lines))["output_file"]
+    assert clips.probe_seconds(output) == pytest.approx(clips.probe_seconds(video), abs=0.15)
+    assert "music" not in models.loaded  # nothing to keep, so no separating
+
+
+def test_stopping_a_dub_while_keeping_its_music_leaves_no_file(copy_of, with_models):
+    video, dub = copy_of("narrated.mp4"), copy_of("beep.mp3")
+    lines = video.with_name("lines.segments.json")
+    lines.write_text(json.dumps([{"start": 3.3, "end": 13.8, "text": "And so."}]), encoding="utf-8")
+    before = sorted(p.name for p in video.parent.iterdir())
+
+    async def main():
+        with anyio.CancelScope() as scope:
+            class Ctx:
+                async def report_progress(self, percent, total, message):
+                    if message.startswith("Taking the voice out"):
+                        scope.cancel()
+            await progress.run(Ctx(), clips.merge_audio_video, str(video), str(dub), str(lines))
+
+    anyio.run(main)
+    assert sorted(p.name for p in video.parent.iterdir()) == before
 
 
 def test_stopping_a_captioned_clip_leaves_no_file(copy_of, with_models):

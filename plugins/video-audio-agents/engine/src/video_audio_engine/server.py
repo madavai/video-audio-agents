@@ -107,11 +107,14 @@ async def cut_clip(video_file: str, start: str, end: str, ctx: Context, subtitle
 
 
 @mcp.tool()
-async def merge_audio_video(video_file: str, audio_file: str, ctx: Context) -> str:
-    """Replaces a video's sound with an audio file (for dubbing). The video keeps its length: silence is added
-    if the audio is shorter, the audio is cut if longer. "Lesson (Hindi).mp3" under "Lesson.mp4" is saved as
-    "Lesson (Hindi).mp4". Returns {output_file}."""
-    return json.dumps(await progress.run(ctx, clips.merge_audio_video, video_file, audio_file))
+async def merge_audio_video(video_file: str, audio_file: str, ctx: Context, segments_file: str | None = None) -> str:
+    """Puts an audio file under a video as its sound. The video keeps its length: silence is added if the audio is
+    shorter, the audio is cut if longer. "Lesson (Hindi).mp3" under "Lesson.mp4" is saved as "Lesson (Hindi).mp4".
+    For a dub, pass the .segments.json it was spoken from as segments_file: only the speaker's voice is replaced.
+    The video's own sound stays wherever nobody speaks, and its music and sound effects play on under the dub (the
+    voice taken out by the music keeper, a 0.1 GB model downloaded once; this takes about as long as the video
+    plays). Without segments_file the whole sound is replaced. Returns {output_file}."""
+    return json.dumps(await progress.run(ctx, clips.merge_audio_video, video_file, audio_file, segments_file))
 
 
 @mcp.tool()

@@ -1,5 +1,5 @@
-"""cut_clip and merge_audio_video: ffmpeg edits with progress. On Stop or failure ffmpeg is stopped and the
-half-made file removed."""
+"""cut_clip and merge_audio_video: ffmpeg edits with progress (a dub's music is kept by music.py). On Stop or
+failure ffmpeg is stopped and the half-made file removed."""
 import logging
 import re
 import subprocess
@@ -47,8 +47,10 @@ def cut_clip(job, video_file: str, start: str, end: str, subtitle_file: str | No
     return {"clip_file": str(output)}
 
 
-def merge_audio_video(job, video_file: str, audio_file: str) -> dict:
-    """Replaces the video's sound with the audio file: silence added if the audio is shorter, cut if longer."""
+def merge_audio_video(job, video_file: str, audio_file: str, segments_file: str | None = None) -> dict:
+    """Replaces the video's sound with the audio file: silence added if the audio is shorter, cut if longer.
+    For a dub, segments_file holds its lines: the video's own sound is kept wherever nobody speaks, and its music
+    and sound effects play on under the dub."""
     video, audio = existing(video_file), existing(audio_file)
     if not has_video(video):
         raise ToolError(f"{video.name} has no picture to put the audio under.")
@@ -56,24 +58,34 @@ def merge_audio_video(job, video_file: str, audio_file: str) -> dict:
     # "Lesson (Hindi).mp3" under "Lesson.mp4" becomes "Lesson (Hindi).mp4".
     name = audio.stem if audio.stem.startswith(video.stem) and audio.stem != video.stem else f"{video.stem} (new audio)"
     output = paths.free_path(video.parent, name, ".mp4")
-    run(job, ["-i", str(video), "-i", str(audio), "-map", "0:v:0", "-map", "1:a:0", "-c:v", "copy",
-              "-af", "apad", "-c:a", "aac", "-b:a", "192k", "-t", f"{length:.3f}", "-movflags", "+faststart"],
-        output, length, "Putting the new audio under the video")
+    start = 0  # where the progress of putting it under the video starts
+    with tempfile.TemporaryDirectory() as tmp:
+        if segments_file and has_audio(video):
+            from . import music  # loads PyTorch: only for dubs
+            sound, start = Path(tmp) / "sound.wav", 90
+            with models.one_at_a_time(job):
+                music.under_dub(lambda pct, message: job.report(pct * 0.9, message), video, audio,
+                                existing(segments_file), sound)
+            audio = sound
+        run(job, ["-i", str(video), "-i", str(audio), "-map", "0:v:0", "-map", "1:a:0", "-c:v", "copy",
+                  "-af", "apad", "-c:a", "aac", "-b:a", "192k", "-t", f"{length:.3f}", "-movflags", "+faststart"],
+            output, length, "Putting the new audio under the video", start=start)
     return {"output_file": str(output)}
 
 
-def run(job, args: list, output: Path, seconds_long: float, label: str, cwd=None) -> None:
-    """Runs ffmpeg, reporting progress. On Stop or failure: stops ffmpeg and removes the half-made output."""
+def run(job, args: list, output: Path, seconds_long: float, label: str, cwd=None, start: float = 0) -> None:
+    """Runs ffmpeg, reporting progress (from `start`%, when an earlier step of the job came first). On Stop or
+    failure: stops ffmpeg and removes the half-made output."""
     ffmpeg = str(models.ensure_ffmpeg() / f"ffmpeg{EXE}")
     command = [ffmpeg, "-hide_banner", "-nostdin", "-loglevel", "error", "-progress", "pipe:1", *args, "-n", str(output)]
-    job.report(0, label)
+    job.report(start, label)
     process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, cwd=cwd,
                                creationflags=NO_WINDOW)
     try:
         for line in process.stdout:
             if line.startswith("out_time_us=") and line.strip()[12:].isdigit():
                 pct = min(99.0, int(line.strip()[12:]) / 1e6 / max(seconds_long, 0.1) * 100)
-                job.report(pct, f"{label}... {int(pct)}%")
+                job.report(start + pct * (100 - start) / 100, f"{label}... {int(pct)}%")
         errors = process.stderr.read()
         process.wait()
     except BaseException:  # Stop (or anything else): end ffmpeg now
@@ -104,6 +116,10 @@ def probe_seconds(file: Path) -> float:
 
 def has_video(file: Path) -> bool:
     return "video" in probe(file, "-select_streams", "v", "-show_entries", "stream=codec_type")
+
+
+def has_audio(file: Path) -> bool:
+    return "audio" in probe(file, "-select_streams", "a", "-show_entries", "stream=codec_type")
 
 
 def seconds(value) -> float:

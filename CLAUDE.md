@@ -34,7 +34,7 @@ Four Claude Code agents (transcriber, translator, voice, publisher), one setup s
 - The private data folder is `VAA_DATA` (Claude Code passes `${CLAUDE_PLUGIN_DATA}`); `paths.data_dir()` reads it.
 - Models live in `<data>/models/<repo name>/`, pinned to an exact revision with exact file sizes in `models.MODELS`. ffmpeg lives in `<data>/bin/`.
 - yt-dlp gets `logger=ToLog()` so nothing reaches stdout. Files a download made are tracked against the folder's contents before it started, so tidying never touches the person's other files.
-- Voice: one big model in memory at a time (`models.loaded`, shared with speech-to-text); Chatterbox loads with `from_local(models.folder(name), "cpu")`, never `from_pretrained`. Libraries must not download on their own: the multilingual tokenizer's Chinese converter is switched off for that reason.
+- Voice: one big model in memory at a time (`models.loaded`, shared with speech-to-text and the music keeper); Chatterbox loads with `from_local(models.folder(name), "cpu")`, never `from_pretrained`; HTDemucs (`music.py`, a dub's music) with `demucs.hf.load_safetensors_model`, never `get_model`. Libraries must not download on their own: the multilingual tokenizer's Chinese converter is switched off for that reason.
 
 ## Tests
 - The engine's tests are in `tests/` at the repo root (settings in `pytest.ini`), outside the plugin, so people don't receive them.

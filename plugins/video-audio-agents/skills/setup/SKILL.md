@@ -22,7 +22,7 @@ The install steps run through `install.py` beside this file: it puts the engine'
 ## Choose the mode
 
 - **Standard** (default, "set up video audio agents"): about 3 GB. Downloading, transcripts, subtitles, translations and posts work straight away. Voice models download on first use.
-- **Full** ("... with voice", "full setup"): about 10 GB. Also downloads the accurate transcript model and the three voice models, so voice work starts without waiting.
+- **Full** ("... with voice", "full setup"): about 10 GB. Also downloads the accurate transcript model, the three voice models and the music keeper for dubs, so voice work starts without waiting.
 
 Tell the person which mode and its size before starting. Re-running setup is always safe: it skips whatever is already there.
 
