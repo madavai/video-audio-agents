@@ -24,6 +24,11 @@ READERS = {"Kannada": ("kn-IN-GaganNeural", "kn-IN-SapnaNeural"), "Tamil": ("ta-
 # The voice models talk a little faster than people do; the result is slowed without changing the pitch.
 SPEEDS = {"little_slower": 0.9, "slower": 0.8, "as_made": 1.0}
 FASTEST = 1.15  # dubbing: how much a line may be sped up to fit before the next one
+# The characters a second each language is said at, as the voices make it (measured on narration; Kannada and Tamil
+# by the reader voice). A good take comes out up to about a fifth longer or shorter than this; in dubbing, speeding
+# up to FASTEST takes up most of that.
+PACE = {"English": 18, "Hindi": 14, "French": 17, "Spanish": 15, "Kannada": 14.5, "Tamil": 14.5}
+TRIES = 3  # a take far from the length its words need is cut or made again (see said)
 PAUSE = 0.4  # seconds between sentences
 
 
@@ -53,7 +58,9 @@ def speak(job, voice: str, language: str, speed: str = "little_slower", text: st
 
 def speak_timed(job, segments_file: str, voice: str, language: str, speed: str = "little_slower") -> dict:
     """Dubbing: speaks each line of a (translated) .segments.json and puts it at the line's start time, so the new
-    audio follows the video. A line too long for its time is sped up a little; what still doesn't fit is reported."""
+    audio follows the video. A line too long for its time is sped up a little; what still doesn't fit is reported.
+    It stays in step because the translator words the lines to fit first (too_long) and garbled takes are cut or
+    made again (said)."""
     check_language(language)
     source = existing(segments_file)
     # Lines without a word (a translated "…" over music) stay silent.
@@ -73,8 +80,9 @@ def speak_timed(job, segments_file: str, voice: str, language: str, speed: str =
         track[round(at * rate):round(at * rate) + len(line)] += line
     base = source.name.removesuffix(SEGMENTS) if source.name.endswith(SEGMENTS) else source.stem
     output = paths.free_path(source.parent, f"{base} ({in_voice(voice)})", ".mp3")
+    most_late = max(at - float(segment["start"]) for segment, (_, at) in zip(segments, timing))
     return {"output_file": str(output), "seconds": save_mp3(track, rate, output), "lines": count,
-            "overruns": overruns[:20], "overrun_count": len(overruns)}
+            "most_late": round(most_late, 1), "overruns": overruns[:20], "overrun_count": len(overruns)}
 
 
 def change_voice(job, file: str, voice: str, speed: str = "as_made") -> dict:
@@ -137,15 +145,43 @@ def spoken(report, texts: list, language: str, sample: str, label: str) -> tuple
     with tempfile.TemporaryDirectory() as tmp:
         for i, text in enumerate(texts):
             report(i / len(texts) * 100, f"{label}: {i + 1} of {len(texts)}{time_left(started, i, len(texts))}")
-            if language == "English":
-                audio = model.generate(text).squeeze(0).numpy()
-            elif language in CLONED:
-                audio = model.generate(text, language_id=CLONED[language]).squeeze(0).numpy()
+            if language in CLONED:
+                lines.append(said(model, text, language))
             else:
-                audio = convert(model, read_aloud(text, reader, tmp), 16000, tmp)
-            lines.append(trimmed(audio, model.sr))
+                lines.append(trimmed(convert(model, read_aloud(text, reader, tmp), 16000, tmp), model.sr))
     report(100, f"{label}: done")
     return lines, model.sr
+
+
+def said(model, text: str, language: str) -> np.ndarray:
+    """The text said by a voice model, without the silence around it. Now and then a model babbles or hums on after
+    the words, or stops part-way (measured on Hindi: one take in five, on some lines most takes). A take over 1.4
+    times the length the words need at the language's pace loses that tail (without_tail); one still under 0.6 or
+    over 1.4 times is made again, at most TRIES times in all, and the take closest to that length is kept. Texts of
+    under a second aren't checked: their length varies too much."""
+    expected, takes = len(text) / PACE[language], []
+    options = {} if language == "English" else {"language_id": CLONED[language]}
+    for _ in range(TRIES):
+        audio = trimmed(model.generate(text, **options).squeeze(0).numpy(), model.sr)
+        if expected < 1:
+            return audio
+        if len(audio) / model.sr > 1.4 * expected:
+            audio = without_tail(audio, model.sr, expected)
+        ratio = max(len(audio), 1) / model.sr / expected
+        takes.append((max(ratio, 1 / ratio), audio))
+        if 0.6 <= ratio <= 1.4:
+            break
+    return min(takes, key=lambda take: take[0])[1]
+
+
+def without_tail(audio: np.ndarray, rate: int, expected: float) -> np.ndarray:
+    """A take that goes on after its words: the babble or hum starts after a short silence. Cut at the longest quiet
+    moment between 0.8 and 1.3 times the expected length, keeping a little after it; without one, it stays as it is.
+    (Checked by speech recognition on 33 such Hindi takes: every word was kept and nothing else.)"""
+    import librosa
+    loud = librosa.effects.split(audio, top_db=35)
+    gaps = [(b[0] - a[1], a[1]) for a, b in zip(loud, loud[1:]) if 0.8 * expected <= a[1] / rate <= 1.3 * expected]
+    return audio[:max(gaps)[1] + int(0.15 * rate)] if gaps else audio
 
 
 def convert(vc, audio: np.ndarray, rate: int, tmp, report=None, label: str = "") -> np.ndarray:
@@ -218,10 +254,24 @@ def joined(segments: list, shortest: int = 40, gap: float = 1.5) -> list:
     return lines
 
 
+def too_long(segments: list, language: str) -> list:
+    """Dubbing, before any speaking: the lines that would take longer to say than their time (from their start to the
+    next line's start), estimated from the language's pace, each with how many characters fit."""
+    check_language(language)
+    lines = []
+    for i, segment in enumerate(segments):
+        until = segments[i + 1]["start"] if i + 1 < len(segments) else segment["end"]
+        fits, characters = int((float(until) - float(segment["start"])) * PACE[language]), len(segment["text"].strip())
+        if characters > fits:
+            lines.append({"at": f"[{float(segment['start']):.1f}s]", "characters": characters, "fits": fits})
+    return lines
+
+
 def place(segments: list, lengths: list, speed: float) -> tuple[list, list]:
     """Dubbing: (tempo, start in seconds) for each spoken line. A line starts at its own time (or right after the
     line before, if that one ran long) and plays at `speed`; if that doesn't fit before the next line starts, it is
-    sped up, at most to 1.15 times. Lines that still don't fit are returned as overruns."""
+    sped up, at most to 1.15 times. A line that starts late is sped up the same way, so it catches up when it can.
+    Lines that still don't fit are returned as overruns."""
     timing, overruns, free_from = [], [], 0.0
     for i, (segment, length) in enumerate(zip(segments, lengths)):
         at = max(float(segment["start"]), free_from)

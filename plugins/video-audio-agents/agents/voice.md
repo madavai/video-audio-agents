@@ -28,10 +28,10 @@ Voice work is slow on a normal computer: about 5 to 8 seconds of work per second
 speak with the voice, language (English, Kannada, Hindi, French, Spanish, Tamil: the language of the text) and speed (little_slower by default; slower for learners; as_made). For a transcript or notes file pass transcript_file; for text they typed pass text (and an output_name if it has a title, and folder only if they name a folder to save into). Kannada and Tamil are read by an online reader voice first and then changed into the saved voice, so the match is weaker; say so.
 
 ## Dubbing
-Needs the video (.mp4) and its translated segments file, named like `Lesson (Hindi).segments.json` (the translator makes it with translated_segments). If either is missing, say the transcriber (video and a timestamped transcript) and the translator (the translated segments file) make them first, and stop.
+Needs the video (.mp4) and its translated segments file, named like `Lesson (Hindi dubbing).segments.json` (the translator makes it with translated_segments, worded short enough that every line can be said in its time). If either is missing, say the transcriber (video and a timestamped transcript) and the translator (the translated segments file) make them first, and stop.
 1. speak_timed with the segments file, the voice, language = the language of the translation, speed little_slower.
 2. merge_audio_video with the video and the .mp3 from step 1.
-Tell them the dubbed video's path, that each line starts when the original speaker's line did, and any overruns (the times where a line runs a little past the next one).
+Tell them the dubbed video's path and that each line starts when the original speaker's line did (within most_late seconds). If there are overruns (a line that ran past the start of the next one, which then starts that much late), name their times and offer to have the translator word those lines shorter and dub again.
 
 ## Changing the voice of an audio file
 change_voice with the file and the voice: the same words and timing, only the voice changes. For a video, then merge_audio_video with the video and the new .mp3.

@@ -161,16 +161,21 @@ learners, or "as made".
 
 **Dubbing:** Claude downloads the video, makes a transcript, translates it (checked line by line, as for any
 translation), speaks each translated sentence in the saved voice at the moment the original sentence started, and puts the new sound under the video:
-`<title> (Hindi) (<voice> voice).mp4`. A sentence that is longer in the new language is sped up slightly (at most
-15%) to fit; if one still runs over, Claude tells you where. Very short sentences are spoken together with the next
-one, which sounds more natural.
+`<title> (Hindi dubbing) (<voice> voice).mp4`. Most languages take longer to say than English, so the translation
+for dubbing is worded to be spoken: the same meaning in shorter, plainer words, checked line by line so each sentence
+can be said in the time the original took. It is saved as `<title> (Hindi dubbing).txt`, apart from any other
+translation you have. A sentence that still comes out a little long is sped
+up slightly (at most 15%) to fit. The voice model sometimes rambles on after a sentence (made-up words or humming):
+that is cut off, and a sentence that comes out cut short is made again. If a sentence still runs over, the next one starts that much late and
+catches up, and Claude tells you where. Very short sentences are spoken together with the next one, which sounds
+more natural.
 
 What you get:
 
 | You ask for | File |
 |---|---|
 | reading aloud | `<name> (<voice> voice).mp3` next to the file read; for text you typed, `<its first words> (<voice> voice).mp3` in `Documents/VideoAudioAgents/Speech/` (or a folder you name) |
-| dubbing | `<title> (<language>) (<voice> voice).mp3` and the same name `.mp4` |
+| dubbing | `<title> (<language> dubbing) (<voice> voice).mp3` and the same name `.mp4`, with the translation it speaks, `<title> (<language> dubbing).txt` |
 | a changed voice | `<name> (<voice> voice).mp3` next to the original |
 
 **It is slow:** about 5 to 8 seconds of work per second of speech on an ordinary computer (dubbing a 2-minute clip
@@ -263,7 +268,7 @@ browser logins, up to 10 GB). Everything you made, in `Documents/VideoAudioAgent
   free memory. Try a shorter clip first.
 - **The voice doesn't sound like you:** save a new sample: 20 to 30 seconds, closer to the microphone, in a quiet
   room, in the language you will use.
-- **The dub drifts out of step in places:** Claude lists the lines that ran over. Ask for a shorter translation of
-  those lines and dub again.
+- **The dub is out of step in places:** Claude lists the lines that ran over. Ask for a shorter wording of those
+  lines and dub again.
 - **"The microphone couldn't be used" or "Nothing was heard":** check the microphone is plugged in and allowed in
   Windows Settings → Privacy & security → Microphone.
