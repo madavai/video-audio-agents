@@ -170,6 +170,13 @@ that is cut off, and a sentence that comes out cut short is made again. If a sen
 catches up, and Claude tells you where. Very short sentences are spoken together with the next one, which sounds
 more natural.
 
+**The music stays:** only the speaker's voice is replaced. Wherever nobody speaks (an intro, a jingle, the music
+between sentences, sound effects), you hear the video's own sound, untouched. Under the dubbed sentences, the
+original voice is taken out of the sound and the music and sound effects play on under the new voice, at their
+original volume. This uses a small music separator (0.1 GB, downloaded once with the voice models) and takes about
+as long as the video plays. Anything said that isn't in the transcript, such as a countdown sung in an intro, stays
+in the original language.
+
 What you get:
 
 | You ask for | File |
@@ -178,8 +185,9 @@ What you get:
 | dubbing | `<title> (<language> dubbing) (<voice> voice).mp3` and the same name `.mp4`, with the translation it speaks, `<title> (<language> dubbing).txt` |
 | a changed voice | `<name> (<voice> voice).mp3` next to the original |
 
-**It is slow:** about 5 to 8 seconds of work per second of speech on an ordinary computer (dubbing a 2-minute clip
-takes about 10 to 15 minutes), and it needs about 6 GB of free memory. Esc stops it at any time. One job can run for
+**It is slow:** about 5 to 8 seconds of work per second of speech on an ordinary computer, plus about as long as
+the video plays to keep a dub's music (dubbing a 2-minute clip takes about 12 to 17 minutes), and it needs about 6 GB
+of free memory. Esc stops it at any time. One job can run for
 at most 4 hours, so dub or read at most about 40 minutes at a time (ask for a clip of a longer video first). The
 first voice job downloads the voice models (1 to 3 GB each) unless you set up "with voice".
 
@@ -270,5 +278,8 @@ browser logins, up to 10 GB). Everything you made, in `Documents/VideoAudioAgent
   room, in the language you will use.
 - **The dub is out of step in places:** Claude lists the lines that ran over. Ask for a shorter wording of those
   lines and dub again.
+- **A trace of the original voice can be heard under the dub:** the music separator works best on speech over music;
+  with a very loud soundtrack, a faint trace may remain. Ask Claude to "put the dub under the video without the
+  original sound" to replace the whole sound instead.
 - **"The microphone couldn't be used" or "Nothing was heard":** check the microphone is plugged in and allowed in
   Windows Settings → Privacy & security → Microphone.

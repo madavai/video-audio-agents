@@ -52,12 +52,17 @@ MODELS = {
         "files": {"ve.pt": 5698626, "t3_mtl23ls_v2.safetensors": 2143989752, "s3gen.pt": 1057165844,
                   "grapheme_mtl_merged_expanded_v1.json": 69989, "conds.pt": 107374, "Cangjie5_TC.json": 1920163},
     },
+    "music": {  # HTDemucs, by the makers of Demucs: takes the voice out of a video's sound, so a dub keeps the music
+        "label": "music keeper for dubs",
+        "repo": ("adefossez/HTDemucs", "cbc8a9b1a87023b7fd74e7b3412e6321c0eab003"),
+        "files": {"955717e8.safetensors": 84025440},
+    },
 }
 STANDARD = ["base", "small"]
-FULL = STANDARD + ["large-v3-turbo", "voice", "english", "multilingual"]
+FULL = STANDARD + ["large-v3-turbo", "voice", "english", "multilingual", "music"]
 FFMPEG_GB = 0.1  # about; the exact size comes with the download
-# The one big model in memory, kept for the next job: {name: model}. Speech-to-text and the voice models share it,
-# and each clears it before loading another, so the computer keeps enough memory.
+# The one big model in memory, kept for the next job: {name: model}. Speech-to-text, the voice models and the music
+# keeper share it, and each clears it before loading another, so the computer keeps enough memory.
 loaded = {}
 busy = threading.Lock()  # held by the job using the big model: a second job waits, so two are never loaded at once
 

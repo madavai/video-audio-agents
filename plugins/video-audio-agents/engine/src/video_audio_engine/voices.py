@@ -112,13 +112,16 @@ def best_window(audio: np.ndarray, rate: int, seconds: float) -> np.ndarray:
     return audio[start:start + window]
 
 
-def read_audio(file, rate: int, seconds: float | None = None) -> np.ndarray:
-    """Any audio or video file as mono samples at `rate` (at most its first `seconds`), decoded by ffmpeg."""
+def read_audio(file, rate: int, seconds: float | None = None, channels: int = 1) -> np.ndarray:
+    """Any audio or video file as mono samples at `rate` (at most its first `seconds`), decoded by ffmpeg.
+    With channels=2: stereo, as rows of [left, right]."""
     ffmpeg = str(models.ensure_ffmpeg() / f"ffmpeg{EXE}")
     limit = ["-t", str(seconds)] if seconds else []
-    result = subprocess.run([ffmpeg, "-nostdin", "-loglevel", "error", "-i", str(file), *limit, "-vn", "-ac", "1",
-                             "-ar", str(rate), "-f", "f32le", "-"], capture_output=True, creationflags=NO_WINDOW)
+    result = subprocess.run([ffmpeg, "-nostdin", "-loglevel", "error", "-i", str(file), *limit, "-vn",
+                             "-ac", str(channels), "-ar", str(rate), "-f", "f32le", "-"], capture_output=True,
+                            creationflags=NO_WINDOW)
     if result.returncode != 0 or not result.stdout:
         log.error("ffmpeg couldn't read %s: %s", file, result.stderr.decode(errors="replace"))
         raise ToolError(f"{Path(file).name} couldn't be read as audio.")
-    return np.frombuffer(result.stdout, dtype=np.float32).copy()
+    audio = np.frombuffer(result.stdout, dtype=np.float32).copy()
+    return audio.reshape(-1, channels) if channels > 1 else audio
