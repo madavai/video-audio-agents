@@ -53,6 +53,29 @@ def test_missing_lines_are_named_then_can_be_added_at_the_end(tmp_path):
     assert fixed == [translate(line) for line in lines]  # put back in order
 
 
+def test_a_line_saved_again_replaces_the_earlier_wording(tmp_path):
+    lesson(tmp_path, 3)
+    file = texts.save_text(str(tmp_path / "Lesson.txt"), "Hindi", "[0.0s] एक\n[4.0s] दो लंबा वाक्य\n[8.0s] तीन", "txt")["file"]
+    texts.save_text(file, "", "[4.0s] दो", "txt", append_to=file)
+    result = texts.translated_segments(str(tmp_path / "Lesson.segments.json"), file)
+    saved = json.loads(open(result["segments_file"], encoding="utf-8").read())
+    assert [s["text"] for s in saved] == ["एक", "दो", "तीन"]
+    assert open(file, encoding="utf-8").read() == "[0.0s] एक\n[4.0s] दो\n[8.0s] तीन\n"  # put back in order, once
+
+
+def test_for_dubbing_lines_too_long_to_say_in_time_come_back_to_be_shortened(tmp_path):
+    lesson(tmp_path, 3)  # a line every 4 seconds: about 56 Hindi characters fit
+    long, short = "बहुत " * 14, "छोटा वाक्य"
+    file = texts.save_text(str(tmp_path / "Lesson.txt"), "Hindi", f"[0.0s] {short}\n[4.0s] {long}\n[8.0s] {short}",
+                           "txt")["file"]
+    result = texts.translated_segments(str(tmp_path / "Lesson.segments.json"), file, dub_language="Hindi")
+    assert result == {"too_long": [{"at": "[4.0s]", "characters": 69, "fits": 56}], "too_long_count": 1, "lines": 3}
+    assert not (tmp_path / "Lesson (Hindi).segments.json").exists()  # nothing saved until every line fits
+    texts.save_text(file, "", "[4.0s] बहुत छोटा", "txt", append_to=file)
+    result = texts.translated_segments(str(tmp_path / "Lesson.segments.json"), file, dub_language="Hindi")
+    assert result == {"segments_file": str(tmp_path / "Lesson (Hindi).segments.json"), "lines": 3}
+
+
 def test_unknown_times_merged_lines_and_wrapped_lines(tmp_path):
     lesson(tmp_path, 3)
     translated = tmp_path / "Lesson (Hindi).txt"

@@ -75,6 +75,66 @@ def test_dubbing_lines_start_at_their_time_and_are_sped_up_at_most_115_percent()
     assert overruns == [{"at": "0:08", "over_by": round(8 + 3.0 / 1.15 - 10, 1)}]
 
 
+def test_a_line_that_starts_late_catches_up_so_the_delay_goes_no_further():
+    segments = [{"start": 0, "end": 3.5, "text": "a"}, {"start": 4, "end": 7.5, "text": "b"},
+                {"start": 8, "end": 11.5, "text": "c"}]
+    # Line 1 needs 4.3 s even at 1.15 times, so line 2 starts 0.3 s late; it speeds up and line 3 is on time.
+    timing, overruns = speech.place(segments, [4.3 * 1.15, 4.0, 3.0], 0.9)
+    starts = [at for _, at in timing]
+    assert starts[1] == pytest.approx(4.3) and starts[2] == 8
+    assert timing[1][0] == pytest.approx(4.0 / 3.7) and overruns == [{"at": "0:00", "over_by": 0.3}]
+
+
+def test_lines_too_long_to_say_in_their_time_are_found_before_speaking():
+    hindi = speech.PACE["Hindi"]  # characters a second
+    segments = [{"start": 0.0, "end": 3.5, "text": "क" * (4 * hindi + 1)},  # 4 s until the next line: one too many
+                {"start": 4.0, "end": 6.5, "text": "ख" * 3 * hindi},  # exactly fills its 3 s
+                {"start": 7.0, "end": 9.0, "text": "ग" * (2 * hindi + 5)}]  # the last line has until its end
+    assert speech.too_long(segments, "Hindi") == [{"at": "[0.0s]", "characters": 4 * hindi + 1, "fits": 4 * hindi},
+                                                  {"at": "[7.0s]", "characters": 2 * hindi + 5, "fits": 2 * hindi}]
+    assert speech.too_long(segments, "French") == []  # French is said faster
+    with pytest.raises(ToolError, match="can't be spoken yet"):
+        speech.too_long(segments, "German")
+
+
+class Takes:
+    """A voice model whose takes, one after the other, are the given audio or last the given seconds."""
+    sr = 24000
+
+    def __init__(self, *takes):
+        self.takes, self.calls = list(takes), 0
+
+    def generate(self, text, language_id=None):
+        self.calls += 1
+        take = self.takes.pop(0)
+        audio = take if isinstance(take, np.ndarray) else speechlike(take, self.sr)
+        return types.SimpleNamespace(squeeze=lambda _: types.SimpleNamespace(numpy=lambda: audio))
+
+
+def test_babble_after_the_words_is_cut_off():
+    text = "क" * 5 * speech.PACE["Hindi"]  # needs 5 seconds
+    babble = np.concatenate([speechlike(5.0, Takes.sr), np.zeros(int(0.4 * Takes.sr), np.float32),
+                             speechlike(3.0, Takes.sr)])  # the words, a short silence, then 3 seconds of babble
+    model = Takes(babble)
+    assert len(speech.said(model, text, "Hindi")) / model.sr == pytest.approx(5.15, abs=0.1) and model.calls == 1
+    pause = np.concatenate([speechlike(2.0, Takes.sr), np.zeros(int(1.5 * Takes.sr), np.float32),
+                            speechlike(4.0, Takes.sr)])
+    assert len(speech.without_tail(pause, Takes.sr, 5.0)) == len(pause)  # a pause early on: the words go on after it
+
+
+def test_a_take_that_babbles_on_or_stops_early_is_made_again():
+    text = "क" * 5 * speech.PACE["Hindi"]  # needs 5 seconds
+    model = Takes(9.0, 1.0, 5.5)  # babble after the words, then words lost, then a good take
+    assert len(speech.said(model, text, "Hindi")) / model.sr == pytest.approx(5.5, abs=0.05)
+    assert model.calls == 3
+    model = Takes(5.2)  # good at once: made once
+    assert len(speech.said(model, text, "Hindi")) / model.sr == pytest.approx(5.2, abs=0.05) and model.calls == 1
+    model = Takes(9.0, 1.5, 7.6)  # never good: the closest of the three is kept
+    assert len(speech.said(model, text, "Hindi")) / model.sr == pytest.approx(7.6, abs=0.05) and model.calls == 3
+    model = Takes(2.0)  # a text of under a second isn't checked
+    assert len(speech.said(model, "नमस्ते।", "Hindi")) / model.sr == pytest.approx(2.0, abs=0.05) and model.calls == 1
+
+
 def test_short_dub_lines_are_spoken_together_with_the_next_one():
     lines = [{"start": 26.5, "end": 28.2, "text": "पर एक सवाल बार-बार आता है।"},  # short, next within 1.5 s: joined
              {"start": 29.2, "end": 30.2, "text": "इसे चलाते कैसे हैं?"},

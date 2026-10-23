@@ -137,7 +137,7 @@ def test_dubbing_puts_every_line_at_its_time(stand_in, voice, tmp_path):
     result = run(speech.speak_timed, str(file), "Test", "Hindi", "little_slower")
     assert result["output_file"] == str(tmp_path / "Lesson (Hindi) (Test voice).mp3")
     assert result["lines"] == 4 and result["overrun_count"] == 1
-    assert result["overruns"] == [{"at": "0:05", "over_by": 0.2}]
+    assert result["overruns"] == [{"at": "0:05", "over_by": 0.2}] and result["most_late"] == 0.2
     assert result["seconds"] == pytest.approx(5.0 + 2.0 / 1.15 + 0.5 / 0.9, abs=0.05)
     starts = sound_starts(result["output_file"])
     assert len(starts) == 2  # silence before the first line and between the first two; then line after line

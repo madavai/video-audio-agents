@@ -2,7 +2,14 @@
 
 The version goes up with every change people should receive: a phase adds one to the middle number, a fix to the last. 1.0.0 is the release, after Phase 7.
 
-## 1.0.1
+## 1.0.2
+
+### Fixes
+- Dubbing stays in step with the picture. In the release test, a 2:43 NASA video with a fast, nonstop narrator, dubbed into Hindi, fell up to 9 seconds behind: every line that ran long pushed all the lines after it later, and nothing let the dub catch up. Two causes were found and fixed:
+  - The Hindi voice model now and then rambles on after a sentence, with made-up words or a few seconds of humming, or stops part-way (one take in five overall, and most takes on some sentences; one take dropped most of its sentence). The rambling always starts after a short silence where the words should end, so a take that runs far too long is now cut at that silence (checked by speech recognition on 33 such takes: every word kept, nothing extra), and a take that is still far too long or short is made again, up to three takes, keeping the best. This also fixes those garbled endings and lost words in reading aloud.
+  - Some Hindi sentences simply take longer to say than the English ones. A translation for dubbing is now worded to be spoken: the translator checks each line against its time before anything is spoken (`translated_segments` with `dub_language`, from each language's measured speaking pace) and words the lines that wouldn't fit more shortly, keeping the meaning. It writes English words in the language's own script too, because the voice skipped a word written in English letters. This translation is saved as `<title> (Hindi dubbing).txt` and the dub as `<title> (Hindi dubbing) (<voice> voice).mp4`, so any other Hindi translation you have is never changed.
+- The dub now reports how late its latest line starts (`most_late`), so Claude can tell you how closely it follows the original.
+- A translated line saved again with the same time now replaces the earlier one, so single lines can be reworded.
 
 ### Fixes
 - The engine now connects in the first restart after setup: no more waiting 15 minutes or pressing Reconnect. Before the setup has installed it, the engine starts as a small stand-in that connects straight away and only says to run the setup (or, once the setup is done, to restart), so Claude Code never sees it fail and never switches it off. The 1.0.0 advice to Reconnect or wait 15 minutes is gone from the setup's closing message and the user guide, except for one case: when the setup had to install uv, Reconnect may still be needed once.

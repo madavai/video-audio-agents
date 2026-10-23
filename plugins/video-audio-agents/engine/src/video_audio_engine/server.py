@@ -66,14 +66,22 @@ def save_text(next_to: str, label: str, text: str, ext: Literal["txt", "md", "sr
         raise progress.plain_error(e) from e
 
 
+Language = Literal["English", "Kannada", "Hindi", "French", "Spanish", "Tamil"]
+Speed = Literal["little_slower", "slower", "as_made"]
+
+
 @mcp.tool()
-def translated_segments(segments_file: str, translated_file: str) -> str:
+def translated_segments(segments_file: str, translated_file: str, dub_language: Language | None = None) -> str:
     """For translated subtitles and dubbing: pairs a translated transcript, written as "[12.5s] text" lines (one
     per original line, times kept), with the original .segments.json. Saves "<translated name>.segments.json"
     with the original times and the translated words. Fails with the list of missing or unknown times if the
-    translation isn't complete line for line, so nothing is lost. Returns {segments_file, lines}."""
+    translation isn't complete line for line, so nothing is lost. A line saved again (append_to) with the same
+    time replaces the earlier one. Returns {segments_file, lines}.
+    For dubbing, pass dub_language (the translation's language): lines that would take longer to say than their
+    time are returned as {too_long: [{at, characters, fits}], too_long_count, lines} and nothing is saved; save a
+    shorter wording of each (at most `fits` characters) with append_to, then call again."""
     try:
-        return json.dumps(texts.translated_segments(segments_file, translated_file))
+        return json.dumps(texts.translated_segments(segments_file, translated_file, dub_language))
     except Exception as e:
         raise progress.plain_error(e) from e
 
@@ -104,10 +112,6 @@ async def merge_audio_video(video_file: str, audio_file: str, ctx: Context) -> s
     if the audio is shorter, the audio is cut if longer. "Lesson (Hindi).mp3" under "Lesson.mp4" is saved as
     "Lesson (Hindi).mp4". Returns {output_file}."""
     return json.dumps(await progress.run(ctx, clips.merge_audio_video, video_file, audio_file))
-
-
-Language = Literal["English", "Kannada", "Hindi", "French", "Spanish", "Tamil"]
-Speed = Literal["little_slower", "slower", "as_made"]
 
 
 @mcp.tool()
@@ -154,10 +158,13 @@ async def speak(voice: str, language: Language, ctx: Context, text: str | None =
 async def speak_timed(segments_file: str, voice: str, language: Language, ctx: Context,
                       speed: Speed = "little_slower") -> str:
     """Dubbing: speaks every line of a translated .segments.json (from translated_segments) in a saved voice and
-    puts each at its line's start time, so it follows the original video. A line too long for its time is sped up
-    a little (at most 1.15 times); lines that still run over are listed in `overruns`. language is the language
-    of the lines. Saved as "<segments name> (<voice> voice).mp3"; then merge_audio_video puts it under the video.
-    Returns {output_file, seconds, lines, overruns, overrun_count}."""
+    puts each at its line's start time, so it follows the original video. Babble after the words is cut off, and a
+    take still much too long or short for its words is made again. A line too long for its time is sped up a little
+    (at most 1.15 times); one that still runs over delays the next line, which then catches up, and is listed in
+    `overruns` ({at, over_by} in seconds); most_late is the most any line starts after its time, in seconds.
+    language is the language of the lines. Saved as "<segments name> (<voice> voice).mp3"; then merge_audio_video
+    puts it under the video.
+    Returns {output_file, seconds, lines, most_late, overruns, overrun_count}."""
     return json.dumps(await progress.run(ctx, speech.speak_timed, segments_file, voice, language, speed))
 
 

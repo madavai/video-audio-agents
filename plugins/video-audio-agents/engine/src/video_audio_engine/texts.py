@@ -1,9 +1,11 @@
 """save_text: saves what the AI wrote (translations, summaries, chapters, notes, posts) next to the file it came
 from, as "name (label).ext". Long texts can be saved in parts: the later parts are appended. Titles and X posts
 longer than their limit are refused, so every draft can be pasted as it is.
-translated_segments: pairs a translated transcript with the original timings, checking nothing was lost."""
+translated_segments: pairs a translated transcript with the original timings, checking nothing was lost (and, for
+dubbing, that every line can be said in its time)."""
 import json
 import re
+from collections import Counter
 from pathlib import Path
 
 from mcp.server.mcpserver.exceptions import ToolError
@@ -100,19 +102,25 @@ def read_json(text: str, segments: bool):
 STAMPED = re.compile(r"^\s*\[(\d+(?:\.\d+)?)s\]\s*(.*)$")
 
 
-def translated_segments(segments_file: str, translated_file: str) -> dict:
+def translated_segments(segments_file: str, translated_file: str, dub_language: str | None = None) -> dict:
     """The original segments with their text replaced by the translation, matched by the "[12.5s]" time on each
-    translated line. Every original line must have its translation, so nothing is lost. If the lines were
-    saved out of order (a missed line added at the end), the translated file is put back in order."""
+    translated line. Every original line must have its translation, so nothing is lost. A line saved again with
+    the same time replaces the earlier one (a shorter wording for dubbing). If the lines were saved out of order
+    (a missed line added at the end) or replaced, the translated file is put back in order.
+    For dubbing (dub_language), lines that would take longer to say than their time are returned instead, so they
+    can be shortened before the slow speaking; nothing is saved until every line fits."""
     original = read_json(existing(segments_file).read_text(encoding="utf-8"), segments=True)
     translated = existing(translated_file)
     lines = stamped_lines(translated.read_text(encoding="utf-8"))
     if not lines:
         raise ToolError(f'{translated.name} has no "[12.5s] text" lines. Translate the transcript line by line, '
                         "keeping each line's time.")
-    waiting = {}
+    waiting, wanted = {}, Counter(f"{float(s['start']):.1f}" for s in original)
     for key, text in lines:
         waiting.setdefault(key, []).append(text)
+    for key, said in waiting.items():
+        if key in wanted:
+            del said[:-wanted[key]]  # only the last wording of a line counts
     result, missing = [], []
     for segment in original:
         key = f"{float(segment['start']):.1f}"
@@ -130,6 +138,11 @@ def translated_segments(segments_file: str, translated_file: str) -> dict:
                         "Add the missing lines with append_to (any order is fine) or fix the times, then try again.")
     if [key for key, _ in lines] != [f"{float(s['start']):.1f}" for s in original]:
         translated.write_text("".join(f"[{float(s['start']):.1f}s] {s['text']}\n" for s in result), encoding="utf-8")
+    if dub_language:
+        from .speech import too_long  # here, because speech uses this module
+        long = too_long(result, dub_language)
+        if long:
+            return {"too_long": long[:50], "too_long_count": len(long), "lines": len(result)}
     path = paths.free_path(translated.parent, translated.stem, SEGMENTS)
     path.write_text(json.dumps(result, ensure_ascii=False, indent=1), encoding="utf-8")
     return {"segments_file": str(path), "lines": len(result)}
