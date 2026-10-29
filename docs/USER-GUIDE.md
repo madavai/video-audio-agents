@@ -6,7 +6,7 @@ work on your own computer:
 
 | Helper | What it does |
 |---|---|
-| **transcriber** | downloads video and audio from links, makes transcripts, subtitles, notes (summary, chapters, quotes and more) and clips |
+| **transcriber** | downloads video and audio from links (also whole playlists and channels), makes transcripts, subtitles, notes (summary, chapters, quotes and more) and clips, finds where something was said, cleans up the sound |
 | **translator** | translates transcripts, subtitles and any text, keeping your fixed terms and names |
 | **voice** | saves a voice (only with permission), reads text aloud in it, dubs a video into another language, changes the voice in a recording |
 | **publisher** | writes YouTube titles, a description and tags, and LinkedIn, X, Instagram and newsletter drafts |
@@ -108,6 +108,55 @@ video are cut back to the end.
 **Pages behind a login (courses, members-only videos):** a browser window (Edge or Chrome) opens. Log in if asked
 (only the first time; it is remembered) and press play if the video doesn't start. Leave the window open until the
 download starts. You have 10 minutes to log in.
+
+### Playlists and channels
+
+> Transcripts of every video in this playlist: https://www.youtube.com/playlist?list=...
+>
+> Audio and transcripts of the latest 10 videos of https://www.youtube.com/@...
+
+Claude first reads the list (nothing is downloaded yet) and tells you its name and how many videos it has. Then it
+does each video in turn, exactly as for a single link, and tells you after each one ("Done 2 of 12: ..."). A video
+that fails is skipped with the reason, and the rest carry on.
+
+- The videos are kept together: `Documents/VideoAudioAgents/<playlist name>/<video title>/`.
+- A channel link gives the channel's videos, newest first. Its Shorts or live streams come only if you give the
+  link to that tab (`.../shorts`, `.../streams`).
+- A list with more than 50 videos is done 50 at a time: Claude asks whether to do the first 50 or which ones. For a
+  very big channel it says "more than 2,000" instead of counting to the end.
+- Podcast feeds work too (an RSS link), and most video sites' playlists. A course page behind a login can't be read
+  as a list: give its lessons' links one by one.
+- A long list takes a long time: each video takes as long as it would on its own. Press **Esc** to stop; the videos
+  that are done stay done.
+
+### Find where something was said
+
+> Where did he talk about inflation?
+>
+> When does she mention the deadline in the lesson videos?
+
+Claude searches every transcript in `Documents/VideoAudioAgents/` (or the folder you name) and answers with the
+video, the time and the sentence, for example: *"Lesson 3, at 12:40: 'Inflation is what happens when ...'"*. It
+finds the lines that contain all the words it searches for, in any order, capitals or not, and tries other words
+once if nothing turns up. Only videos with a transcript can be searched; transcripts without timestamps give the
+sentence but no time.
+
+### Clean up the audio
+
+> Clean up the audio of my recording C:\Users\me\Recordings\talk.mp3.
+>
+> The sound of this video is too quiet. Fix it.
+
+| You give | You get |
+|---|---|
+| an audio file | `<name> (clean audio).mp3` (the same kind of file: a .wav stays a .wav), at an even loudness, with the silence at the start and end cut (a third of a second is left) |
+| a video | `<name> (clean audio).mp4`: the same picture, the sound at an even loudness, the same length |
+
+"An even loudness" is -16 LUFS, the level podcast apps and YouTube expect for speech: a quiet recording becomes
+louder, a loud one quieter, and the loudest moments stay clear of distortion. A video keeps its silence, because
+cutting it would put the picture out of step; for a trimmed sound-only file, ask Claude to clean the video's .mp3.
+You can also ask for only one of the two ("just cut the silence"). It takes about a minute for every 15 minutes of
+sound. Claude tells you how loud it was before and how much silence was cut.
 
 ## Translate (translator)
 
@@ -244,14 +293,13 @@ browser logins, up to 10 GB). Everything you made, in `Documents/VideoAudioAgent
 
 ## Limits
 
-- Runs on your computer: Windows first. Mac is checked in version 1.1. Not available in claude.ai in a browser or on
-  phones.
-- Uses the processor only; using a graphics card to go faster comes in version 1.1.
+- Runs on your computer: Windows first. Mac is checked in a later version. Not available in claude.ai in a browser
+  or on phones.
+- Uses the processor only; using a graphics card to go faster comes in a later version.
 - Copy-protected services (Netflix and similar) are not supported.
 - You are responsible for following the terms of the sites you download from.
-- Coming in version 1.1: whole playlists and channels, picking the best moments for Shorts, vertical clips,
-  searching all your transcripts, audio clean-up, who-said-what labels, narration with intro music, podcast-ready
-  files, and Kannada and Tamil spoken directly in the saved voice.
+- Still to come: picking the best moments for Shorts, vertical clips, who-said-what labels, narration with intro
+  music, podcast-ready files, and Kannada and Tamil spoken directly in the saved voice.
 
 ## Troubleshooting
 
@@ -266,6 +314,12 @@ browser logins, up to 10 GB). Everything you made, in `Documents/VideoAudioAgent
 - **A download stopped halfway:** ask again (or run the setup again). It continues where it stopped.
 - **A link fails:** the other links still run. If a site that used to work stops working, say "update video audio
   agents": the downloader is updated with each release. Copy-protected services are not supported.
+- **A video in a playlist fails as private or removed:** its owner has hidden or deleted it; the rest of the list
+  carries on.
+- **A search finds nothing:** only videos with a transcript can be searched, and only the words actually said. Try
+  another word, or the word in the language of the video.
+- **The cleaned-up audio still sounds noisy:** clean-up evens out the loudness and cuts silence at the ends; it does
+  not remove background noise or echo.
 - **The login page opens but nothing downloads:** log in, then press play on the video, and leave the window open
   until Claude says the download has started.
 - **No Edge or Chrome:** say "set up the login browser" to install one just for this (about 150 MB).

@@ -9,7 +9,8 @@ from mcp.client.session import ClientSession
 from mcp.client.stdio import StdioServerParameters, stdio_client
 
 TOOLS = {"check_setup", "fetch_media", "transcribe", "save_text", "make_subtitles", "cut_clip", "merge_audio_video",
-         "translated_segments", "list_voices", "save_voice", "record_voice", "speak", "speak_timed", "change_voice"}
+         "translated_segments", "list_voices", "save_voice", "record_voice", "speak", "speak_timed", "change_voice",
+         "list_links", "search_texts", "clean_audio"}
 
 
 async def talk_to_engine(data_dir, calls):
