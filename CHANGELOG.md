@@ -12,8 +12,11 @@ Phase 8 (Batch & search), the first part of Wave 2.
   as for a single link, telling you after each one. The videos are kept together in
   `Documents/VideoAudioAgents/<playlist name>/`, one folder per video. A channel gives its videos, newest first (its
   Shorts and live streams only from a link to that tab). Lists with more than 50 videos are done 50 at a time, and
-  Claude asks which ones first; a very big channel is counted up to 2,000 ("more than 2,000"). Tried on a real
-  three-video YouTube playlist: three folders, each with its audio and transcript.
+  Claude asks which ones first; a very big channel is counted up to 2,000 ("more than 2,000"; NASA's channel has
+  over 5,500 videos). The videos are done one at a time: in the first try Claude started all of a playlist's
+  downloads at once, which sites can block. Tried on a real YouTube playlist of 11 short videos (11 folders, each
+  with its audio and transcript, in about 3 minutes) and on the first 3 videos of a 94-video playlist (3 folders, one
+  video after the other).
 - **Find where something was said.** "Where did he talk about X?" searches all your transcripts and answers with the
   video, the time and the sentence. It finds the lines with all the words searched for, in any order, capitals or
   not.
