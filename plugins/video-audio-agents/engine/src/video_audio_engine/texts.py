@@ -1,6 +1,6 @@
 """save_text: saves what the AI wrote (translations, summaries, chapters, notes, posts) next to the file it came
-from, as "name (label).ext". Long texts can be saved in parts: the later parts are appended. Titles and X posts
-longer than their limit are refused, so every draft can be pasted as it is.
+from, as "name (label).ext". Long texts can be saved in parts: the later parts are appended. Titles, X posts,
+Shorts titles and quote cards longer than their limit are refused, so every draft can be pasted as it is.
 translated_segments: pairs a translated transcript with the original timings, checking nothing was lost (and, for
 dubbing, that every line can be said in its time).
 search_texts: finds where something was said, across all the transcripts."""
@@ -23,22 +23,32 @@ def x_length(post: str) -> int:
                or 0x2032 <= ord(c) <= 0x2037 else 2 for c in post)
 
 
-# Drafts with a length limit, by label: what one piece is called, what separates the pieces, the limit,
-# how it is counted, and the limit in words for the message.
+# Drafts with a length limit, by label: what one piece is called, how the text is split into pieces, the limit,
+# how it is counted, and the limit in words for the message. A draft's translation has the same limit: saved next to
+# the draft ("Lesson (x-thread).txt", label "Hindi") or labelled with it ("x-thread Hindi").
 LIMITS = {
-    "titles": ("Title", r"\n", 60, len, "the 60 characters YouTube shows in full"),
-    "x-thread": ("X post", r"\n\s*\n", 280, x_length, "X's limit of 280 (posts are separated by a blank line)"),
+    "titles": ("Title", lambda text: text.split("\n"), 60, len, "the 60 characters YouTube shows in full"),
+    "x-thread": ("X post", lambda text: re.split(r"\n\s*\n", text), 280, x_length,
+                 "X's limit of 280 (posts are separated by a blank line)"),
+    "shorts": ("Short's title", lambda text: re.findall(r"(?im)^\s*title:(.*)$", text), 40, len,
+               "the 40 characters a Short's title shows in full on a phone"),
+    "quote-cards": ("Quote card", lambda text: text.split("\n"), 120, len,
+                    "the 120 characters that fit on a square card"),
+    # A calendar's X posts: the text under each "Day 3 (X)" line, up to the next day.
+    "calendar": ("X post", lambda text: re.findall(r"(?ims)^\s*day \d+ \(x\)[^\n]*\n(.*?)(?=^\s*day \d+ \(|\Z)", text),
+                 280, x_length, "X's limit of 280"),
 }
-LABEL = re.compile(r"\(([^()]+)\)(?: \(\d+\))?$")  # "Lesson (x-thread)" or "Lesson (x-thread) (2)"
+LABELS = re.compile(r"\(([^()]+)\)")  # "Lesson (x-thread) (Hindi) (2)" → x-thread, Hindi, 2
 
 
 def check_limits(label: str, text: str) -> None:
     """Refuses the whole text, naming the first piece that is too long, before anything is written."""
     key = label.strip().lower().replace(" ", "-")
-    if key not in LIMITS:
+    rule = next((LIMITS[name] for name in LIMITS if key == name or key.startswith(name + "-")), None)
+    if not rule:
         return
-    piece, separator, limit, length, words = LIMITS[key]
-    for number, part in enumerate((p.strip() for p in re.split(separator, text) if p.strip()), 1):
+    piece, pieces, limit, length, words = rule
+    for number, part in enumerate((p.strip() for p in pieces(text) if p.strip()), 1):
         if length(part) > limit:
             start = " ".join(part.split())[:40].rstrip()
             raise ToolError(f'{piece} {number} ("{start}...") is {length(part)} characters, over {words}; '
@@ -48,8 +58,9 @@ def check_limits(label: str, text: str) -> None:
 def save_text(next_to: str, label: str, text: str, ext: str, append_to: str | None = None) -> dict:
     if append_to:
         return {"file": str(append(Path(append_to), text))}
-    check_limits(label, text)
     source = Path(next_to)
+    for each in [label, *LABELS.findall(source.stem)]:
+        check_limits(each, text)
     root = paths.output_root()
     if not source.parent.is_dir():
         if source.parent != root and root not in source.parent.parents:
@@ -72,8 +83,8 @@ def append(path: Path, text: str) -> Path:
     """Adds a later part: text goes on the end; a JSON list is extended with the new list."""
     if not path.is_file():
         raise ToolError(f"There is no file at {path} to add to. Save the first part without append_to.")
-    label = LABEL.search(path.stem)
-    check_limits(label[1] if label else "", text)
+    for each in LABELS.findall(path.stem):
+        check_limits(each, text)
     if path.suffix == ".json":
         old = read_json(path.read_text(encoding="utf-8"), path.name.endswith(SEGMENTS))
         new = read_json(text, path.name.endswith(SEGMENTS))

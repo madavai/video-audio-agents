@@ -16,8 +16,8 @@ from .paths import data_dir
 
 mcp = MCPServer(
     "engine",
-    instructions="Downloads (also whole playlists), transcribes, searches transcripts, subtitles, cuts, cleans up, "
-    "voices and dubs video and audio. "
+    instructions="Downloads (also whole playlists), transcribes, searches transcripts, subtitles, cuts, crops for "
+    "Shorts, cleans up, voices and dubs video and audio. "
     "Every tool returns a small JSON object; files are never overwritten.",
 )
 
@@ -70,8 +70,11 @@ def save_text(next_to: str, label: str, text: str, ext: Literal["txt", "md", "sr
     <output_folder>/glossary.md). For long texts, save the first part, then pass the returned path as append_to
     for each later part. JSON next to a .segments.json file is saved as "<name> (<label>).segments.json" and
     must be a list of {start, end, text}; appending extends the list. Drafts with a length limit are refused,
-    naming the piece to shorten: label "titles" (one per line, each at most 60 characters) and label "x-thread"
-    (a blank line between posts, each at most 280 characters as X counts them). Returns {file}."""
+    naming the piece to shorten: label "titles" (one per line, each at most 60 characters), "x-thread" (a blank
+    line between posts, each at most 280 characters as X counts them), "shorts" (each line starting "Title:" at
+    most 40 characters after it), "quote-cards" (one per line, each at most 120 characters) and "calendar" (the
+    post under each "Day 3 (X)" line at most 280 characters as X counts them). A draft's translation, saved with
+    next_to = the draft and label = the language, has the same limit. Returns {file}."""
     try:
         return json.dumps(texts.save_text(next_to, label, text, ext, append_to))
     except Exception as e:
@@ -129,6 +132,21 @@ async def cut_clip(video_file: str, start: str, end: str, ctx: Context, subtitle
     back a second or two to the nearest keyframe). With subtitle_file (.srt or .vtt of the same video) the
     captions are burned into the picture (slower; exact start). Returns {clip_file}."""
     return json.dumps(await progress.run(ctx, clips.cut_clip, video_file, start, end, subtitle_file))
+
+
+@mcp.tool()
+async def crop_vertical(video_file: str, ctx: Context, focus: Literal["center", "left", "right", "whole"] = "center",
+                        start: str | None = None, end: str | None = None, subtitle_file: str | None = None) -> str:
+    """An upright video for YouTube Shorts, Instagram Reels and TikTok: 9:16 at 1080x1920, the full height of the
+    picture with its middle kept (focus "center"), or its left or right side (when the speaker stands there), or
+    "whole": the whole picture across the middle on a blurred copy of itself, so nobody and no text on screen is cut
+    off (interviews framed to one side, two people, slides). With
+    start and end (minutes:seconds or seconds) only that part is made, starting exactly: one step for a Short from a
+    long video. With subtitle_file (the .srt or .vtt of video_file, not of a clip) the captions are burned in after
+    the crop, in short lines sized for a phone, so none is cut off at the sides: pass the subtitles here rather than
+    cropping a clip that already has captions. Saved next to the video as "<name> (vertical 1-00 to 1-30).mp4"
+    (" (captions)" added with subtitles). Takes at most about as long as the part plays. Returns {output_file}."""
+    return json.dumps(await progress.run(ctx, clips.crop_vertical, video_file, focus, start, end, subtitle_file))
 
 
 @mcp.tool()

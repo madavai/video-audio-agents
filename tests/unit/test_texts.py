@@ -100,3 +100,71 @@ def test_added_titles_are_checked_too(tmp_path):
         texts.save_text(str(source), "", "D" * 61, "txt", append_to=file)
     texts.save_text(str(source), "", "Third", "txt", append_to=file)
     assert (tmp_path / "Lesson (titles) (2).txt").read_text(encoding="utf-8") == "Second\nThird\n"
+
+
+SHORTS = """Short 1 - 0:12 to 0:55 - Lesson (vertical 0-12 to 0-55) (captions).mp4
+Title: {}
+Caption: Why the first minute decides everything. #shorts #learning
+
+Short 2 - 2:01 to 2:44 - Lesson (vertical 2-01 to 2-44) (captions).mp4
+title:  {}
+Caption: A caption can be as long as it needs to be, because only the title is cut off on a phone screen.
+"""
+
+
+def test_shorts_titles_up_to_40_characters_are_saved_and_longer_ones_refused(tmp_path):
+    source = tmp_path / "Lesson.txt"
+    source.write_text("x")
+    with pytest.raises(ToolError, match=r"Short's title 2 \(\"BBB.*\"\) is 41 characters, over the 40 characters"):
+        texts.save_text(str(source), "shorts", SHORTS.format("A" * 40, "B" * 41), "txt")
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["Lesson.txt"]
+    file = texts.save_text(str(source), "shorts", SHORTS.format("A" * 40, "B" * 40), "txt")["file"]
+    assert file == str(tmp_path / "Lesson (shorts).txt")
+
+
+def test_quote_cards_over_120_characters_are_refused(tmp_path):
+    source = tmp_path / "Lesson.txt"
+    source.write_text("x")
+    cards = "\n".join(f'"{letter * 118}"' for letter in "ABCD")
+    texts.save_text(str(source), "quote-cards", cards, "txt")
+    with pytest.raises(ToolError, match=r'Quote card 5 \(""EEE.*"\) is 121 characters, over the 120'):
+        texts.save_text(str(source), "quote cards", cards + '\n"' + "E" * 119 + '"', "txt")
+
+
+def test_a_translated_draft_keeps_its_limit(tmp_path):
+    source = tmp_path / "Lesson.txt"
+    source.write_text("x")
+    with pytest.raises(ToolError, match="X post 1"):
+        texts.save_text(str(source), "x-thread Hindi", "क" * 281, "txt")
+    with pytest.raises(ToolError, match="Short's title 1"):
+        texts.save_text(str(source), "shorts Kannada", "Title: " + "ಕ" * 41, "txt")
+    file = texts.save_text(str(source), "titles Hindi", "शीर्षक", "txt")["file"]
+    assert file == str(tmp_path / "Lesson (titles Hindi).txt")
+    with pytest.raises(ToolError, match="Title 1"):
+        texts.save_text(str(source), "", "क" * 61, "txt", append_to=file)
+    texts.save_text(str(source), "Hindi", "क" * 3000, "txt")  # a translated transcript has no limit
+
+
+def test_a_calendar_s_x_posts_are_checked_and_its_other_posts_are_not(tmp_path):
+    """Found in the real try: a calendar's X post came out at 293 characters."""
+    source = tmp_path / "Lesson.txt"
+    source.write_text("x")
+    calendar = "Day 1 (LinkedIn)\n{}\n\nDay 2 (X)\n{}\n\nDay 3 (Instagram)\nShort one.\n\nday 4 (x)\n{}\n"
+    file = texts.save_text(str(source), "calendar", calendar.format("L" * 2000, "A" * 280, "B" * 200), "txt")["file"]
+    assert file == str(tmp_path / "Lesson (calendar).txt")
+    with pytest.raises(ToolError, match=r'X post 2 \("BBB.*"\) is 281 characters, over X.s limit of 280'):
+        texts.save_text(str(source), "calendar", calendar.format("L" * 2000, "A" * 280, "B" * 281), "txt")
+    with pytest.raises(ToolError, match="X post 1"):  # a translated calendar keeps its "Day 2 (X)" lines
+        texts.save_text(str(source), "calendar Hindi", calendar.format("ल", "क" * 281, "ख"), "txt")
+
+
+def test_a_draft_translated_next_to_itself_keeps_its_limit(tmp_path):
+    """Found in the real try: the translator saved the Hindi Shorts package next to the package, label "Hindi"."""
+    draft = tmp_path / "Lesson (shorts) (2).txt"
+    draft.write_text("Title: Short")
+    with pytest.raises(ToolError, match="Short's title 1"):
+        texts.save_text(str(draft), "Hindi", "Title: " + "क" * 41, "txt")
+    file = texts.save_text(str(draft), "Hindi", "Title: " + "क" * 40, "txt")["file"]
+    assert file == str(tmp_path / "Lesson (shorts) (2) (Hindi).txt")
+    with pytest.raises(ToolError, match="Short's title 1"):  # and so does a part added later
+        texts.save_text(str(draft), "", "Title: " + "ख" * 41, "txt", append_to=file)

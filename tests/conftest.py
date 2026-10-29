@@ -65,6 +65,10 @@ def media(ffmpeg, tmp_path_factory):
     make("-f", "lavfi", "-i", "testsrc=size=320x240:rate=25", "-i", "long.mp3", "-shortest",
          "-c:v", "libx264", "-g", "50", "-pix_fmt", "yuv420p", "-c:a", "aac", "long.mp4")  # a keyframe every 2 s
     make("-f", "lavfi", "-i", "sine=frequency=440:duration=180", "-b:a", "128k", "slow.mp3")
+    # A wide 16:9 picture in three bands, red | green | blue, so an upright crop shows which part it kept.
+    make("-f", "lavfi", "-i", "color=red:size=427x720:rate=25", "-f", "lavfi", "-i", "color=green:size=426x720:rate=25",
+         "-f", "lavfi", "-i", "color=blue:size=427x720:rate=25", "-i", speech, "-filter_complex", "[0][1][2]hstack=3[v]",
+         "-map", "[v]", "-map", "3:a", "-t", "8", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", "thirds.mp4")
     # A video narrated over music (a tone and soft noise throughout, the speech from 0:03), and a beep as its dub.
     make("-f", "lavfi", "-i", "testsrc=size=320x240:rate=25:duration=20", "-f", "lavfi",
          "-i", "sine=frequency=220:duration=20,volume=0.1", "-f", "lavfi",
