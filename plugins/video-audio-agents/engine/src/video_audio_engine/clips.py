@@ -1,5 +1,5 @@
-"""cut_clip and merge_audio_video: ffmpeg edits with progress (a dub's music is kept by music.py). On Stop or
-failure ffmpeg is stopped and the half-made file removed."""
+"""cut_clip, crop_vertical and merge_audio_video: ffmpeg edits with progress (a dub's music is kept by music.py).
+On Stop or failure ffmpeg is stopped and the half-made file removed."""
 import logging
 import re
 import subprocess
@@ -17,15 +17,29 @@ NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)  # no console window flas
 EXE = ".exe" if sys.platform == "win32" else ""
 
 
+ENCODE = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p",
+          "-c:a", "aac", "-b:a", "160k", "-movflags", "+faststart"]
+# Where the upright 9:16 window sits across a wide picture: the middle, or the left or right edge.
+FOCUS = {"center": "(iw-ow)/2", "left": "0", "right": "iw-ow"}
+# Non-square pixels are made square first, so nobody looks squeezed.
+SQUARE_PIXELS = "scale='trunc(iw*sar/2)*2':ih,setsar=1,"
+# The window is as tall as the picture (as wide as it, if the picture is narrower than 9:16), then made 1080x1920.
+CROP = ("crop=w='trunc(min(iw,ih*9/16)/2)*2':h='trunc(min(ih,iw*16/9)/2)*2':x='{x}':y='(ih-oh)/2',"
+        "scale=1080:1920:flags=lanczos,setsar=1")
+# focus "whole": nothing cut off (interviews framed to one side, two people, text on screen): the whole picture
+# across the middle, on a blurred, enlarged copy of itself.
+WHOLE = ("split[front][back];[back]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,"
+         "boxblur=24[blurred];[front]scale=1080:1920:force_original_aspect_ratio=decrease:force_divisible_by=2"
+         "[fitted];[blurred][fitted]overlay=(W-w)/2:(H-h)/2,setsar=1")
+# Captions for a phone held upright, burned in after the crop so no line loses its ends: at most 2 lines of 24
+# characters, large, and above the bottom of the screen, where the Shorts and Reels apps put their title and buttons.
+UPRIGHT_CHARS = 24
+UPRIGHT_STYLE = "PlayResX=1080,PlayResY=1920,Fontsize=72,Bold=1,Outline=4,Shadow=0,MarginL=110,MarginR=110,MarginV=480"
+
+
 def cut_clip(job, video_file: str, start: str, end: str, subtitle_file: str | None = None) -> dict:
     source = existing(video_file)
-    first, last = seconds(start), seconds(end)
-    length = probe_seconds(source)
-    last = min(last, length)
-    if first >= length:
-        raise ToolError(f"The clip starts at {clock(first)}, but {source.name} is only {clock(length)} long.")
-    if last <= first:
-        raise ToolError("The end time must be after the start time.")
+    first, last = span(source, start, end)
     name = f"{source.stem} (clip {clock(first, '-')} to {clock(last, '-')})"
     if not subtitle_file:  # copied as it is: instant, but the start snaps to the nearest keyframe before it
         output = paths.free_path(source.parent, name, source.suffix)
@@ -40,11 +54,50 @@ def cut_clip(job, video_file: str, start: str, end: str, subtitle_file: str | No
     with tempfile.TemporaryDirectory() as tmp:  # captions shifted to the clip, under a plain name for the filter
         (Path(tmp) / "captions.srt").write_text(subtitles.write(cues, "srt"), encoding="utf-8")
         run(job, ["-ss", f"{first:.3f}", "-i", str(source), "-t", f"{last - first:.3f}",
-                  "-vf", "subtitles=captions.srt:force_style='Fontsize=20,Outline=1.5,MarginV=24'",
-                  "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p",
-                  "-c:a", "aac", "-b:a", "160k", "-movflags", "+faststart"],
+                  "-vf", "subtitles=captions.srt:force_style='Fontsize=20,Outline=1.5,MarginV=24'", *ENCODE],
             output, last - first, "Making the clip with captions", cwd=tmp)
     return {"clip_file": str(output)}
+
+
+def crop_vertical(job, video_file: str, focus: str = "center", start: str | None = None, end: str | None = None,
+                  subtitle_file: str | None = None) -> dict:
+    """An upright 1080x1920 video (Shorts, Reels) of the whole video, or of the part between start and end: a 9:16
+    window of the picture, or with focus "whole" all of it. Captions are burned in afterwards, in short lines."""
+    source = existing(video_file)
+    if not has_video(source):
+        raise ToolError(f"{source.name} has no picture to make an upright video from.")
+    first, last = span(source, start or 0, end)
+    name = f"{source.stem} (vertical {clock(first, '-')} to {clock(last, '-')})" if start or end \
+        else f"{source.stem} (vertical)"
+    filters = SQUARE_PIXELS + (WHOLE if focus == "whole" else CROP.format(x=FOCUS[focus]))
+    with tempfile.TemporaryDirectory() as tmp:
+        if subtitle_file:
+            cues = subtitles.window(subtitles.read(existing(subtitle_file)), first, last)
+            if not cues:
+                raise ToolError(f"{Path(subtitle_file).name} has no captions between {clock(first)} and "
+                                f"{clock(last)}. Is it the subtitle file of {source.name}?")
+            # Each caption's words again, in pieces short enough for the narrow picture.
+            cues = subtitles.to_cues([{"start": a, "end": b, "text": " ".join(lines)} for a, b, lines in cues],
+                                     UPRIGHT_CHARS)
+            (Path(tmp) / "captions.srt").write_text(subtitles.write(cues, "srt"), encoding="utf-8")
+            filters += f",subtitles=captions.srt:force_style='{UPRIGHT_STYLE}'"
+            name += " (captions)"
+        output = paths.free_path(source.parent, name, ".mp4")
+        run(job, ["-ss", f"{first:.3f}", "-i", str(source), "-t", f"{last - first:.3f}", "-map", "0:v:0",
+                  "-map", "0:a:0?", "-vf", filters, *ENCODE], output, last - first, "Making the upright video",
+            cwd=tmp)
+    return {"output_file": str(output)}
+
+
+def span(source: Path, start, end) -> tuple:
+    """A part's start and end in seconds. An end past the end of the file (or none) is the end of the file."""
+    length = probe_seconds(source)
+    first, last = seconds(start), min(seconds(end), length) if end else length
+    if first >= length:
+        raise ToolError(f"The clip starts at {clock(first)}, but {source.name} is only {clock(length)} long.")
+    if last <= first:
+        raise ToolError("The end time must be after the start time.")
+    return first, last
 
 
 def merge_audio_video(job, video_file: str, audio_file: str, segments_file: str | None = None) -> dict:

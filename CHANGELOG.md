@@ -2,6 +2,60 @@
 
 The version goes up with every change people should receive: a phase adds one to the middle number, a fix to the last. 1.0.0 is the release, after Phase 7.
 
+## 1.2.0
+
+Phase 9 (Shorts & calendar), the second part of Wave 2.
+
+### New
+- **Shorts from a video's best moments.** "Make 3 Shorts from the best moments of this video" has the transcriber
+  read the whole transcript and pick up to 3 moments of 30 to 60 seconds: each makes one clear point, makes sense
+  without the rest of the video, and opens with a line that makes people want to hear more, in the speaker's own
+  words. Each is made upright (1080 × 1920, the size YouTube Shorts, Instagram Reels and TikTok use) with the
+  captions burned in, as `<title> (vertical 12-34 to 13-20) (captions).mp4`, and the moments are listed in
+  `<title> (best moments).txt`. Ask for "the best moments" without Shorts and they come as ordinary clips with
+  captions.
+- **Captions that fit an upright screen.** Captions burned into the wide picture would lose both ends of every line
+  when it is cut down to an upright one, so the picture is cut first and the captions are added afterwards: at most
+  two short lines at a time, in large letters, above the spot where the apps show the title and buttons. The middle
+  of the picture is kept; if the speaker stands to one side, ask for the left or right of the picture instead. For
+  interviews, two people or text on screen, ask for the whole picture: it is shown in full across the middle on a
+  blurred, enlarged copy of itself, so nobody is cut off (added after the real try, where the middle cut an
+  interviewee framed to one side in half).
+- **Shorts package.** The publisher writes a title (at most 40 characters, what a phone shows in full) and a caption
+  with hashtags for each Short, saved as `<title> (shorts).txt`. A helper can't call another helper, so Claude runs
+  the transcriber first (it makes the Shorts) and then the publisher.
+- **A week of posts.** A content calendar: 7 posts from one video, one a day, mixing LinkedIn, X and Instagram (or
+  the platforms you name), each making sense on its own day (`<title> (calendar).txt`).
+- **Quote cards.** 5 quotes in the speaker's exact words, one per line, each at most 120 characters, ready to put on
+  square images (`<title> (quote-cards).txt`). No images are made or downloaded.
+- **Bilingual and simpler versions.** The translator makes a bilingual version (each line, then its translation
+  under it: `<title> (Hindi bilingual).txt`) and a simpler version for learners (the same meaning in plain words,
+  line for line with the same times: `<title> (Hindi simple).txt`, also in the transcript's own language).
+- **Posts in other languages.** The translator turns each of the publisher's drafts into a post for that language's
+  readers, saved next to it as `<title> (linkedin) (Hindi).txt` and so on, with the same length checks as the
+  original.
+- Engine tool `crop_vertical(video_file, focus, start, end, subtitle_file)`; `save_text` also checks Shorts titles
+  (label "shorts", lines starting `Title:`, at most 40 characters), quote cards (at most 120) and a calendar's X
+  posts (at most 280; in the real try one came out at 293), and a draft's translation saved next to it keeps the
+  draft's limit (every label in the file's name counts).
+
+### Tried for real
+- NASA Goddard's "Spectroscopy, Explained" (7:52, one presenter at a desk): "Make a Shorts package from this video"
+  had the transcriber pick 3 moments (42, 57 and 37 seconds) and make them upright with captions, then the publisher
+  write their titles (33 to 36 characters) and captions, about 6 minutes in all. The presenter stays in the picture,
+  every caption is whole, and speech recognition on the Shorts hears each moment's first and last sentence in full.
+  A 42-second Short took 9 seconds to make on 24 processor cores and 35 seconds on 4.
+- From the same video: a 7-day calendar (LinkedIn, X and Instagram in turn), 5 quote cards (all the speaker's exact
+  words), a bilingual English and Hindi transcript (77 of 77 lines), a simpler Hindi version, and the Shorts
+  package and calendar in Hindi.
+- NASA's "2016 Planetary Science Winter School" (3:28, interviews): 3 Shorts, then a whole Shorts package from the
+  video on the computer, where Claude chose the whole-picture layout for the interview by itself.
+- Found in these tries and fixed before release: one Short ended in 7 seconds of silent animation (moments now end
+  half a second after their last sentence, not where the next one starts); a calendar's X post came out at 293
+  characters (now checked); the middle cut showed only half of an interviewee framed to one side (the whole-picture
+  layout); translations saved next to their draft escaped the length checks; and a wording in the transcriber's
+  description stopped Claude Code from reading the helper's description at all (caught by the plugin check).
+
 ## 1.1.0
 
 Phase 8 (Batch & search), the first part of Wave 2.

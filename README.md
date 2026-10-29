@@ -46,11 +46,15 @@ When someone asks you to install this repository, do not clone it. Run:
 >
 > Transcripts of every video in this playlist. · Where did he talk about inflation?
 >
+> Make 3 Shorts from the best moments, with subtitles.
+>
 > Clean up the audio of my recording.
 
 **Translations** (the translator)
 
 > Translate it to Kannada. · Hindi subtitles for this video.
+>
+> A bilingual English and Hindi version. · A simpler Hindi version for learners.
 
 **Voices and dubbing** (the voice helper)
 
@@ -61,6 +65,8 @@ When someone asks you to install this repository, do not clone it. Run:
 **Titles and posts** (the publisher)
 
 > Write the YouTube titles, description, a LinkedIn post and an X thread.
+>
+> A Shorts package from this video. · A week of posts. · Quote cards.
 
 Everything for one link goes into its own folder in `Documents/VideoAudioAgents/`. Nothing is ever overwritten: a
 second copy is saved as `name (2)`. The [user guide](docs/USER-GUIDE.md) has every example, what each one makes, and
@@ -81,13 +87,13 @@ Say "update video audio agents". Or turn on auto-update: `/plugin` → Marketpla
 - You are responsible for following the terms of the sites you download from. The voice helper only saves a voice
   that is yours or that you have permission to use.
 - The helpers never post anything anywhere: posts are drafts for you to review.
-- Still to come: best-moment Shorts, speaker labels, narration with music, podcast files, graphics-card speed-up
-  and Mac.
+- Still to come: speaker labels, narration with music, podcast files, graphics-card speed-up and Mac.
 
 ## Status
 
-Version 1.1: Wave 1 of the [build plan](docs/BUILD-PLAN.md) is complete, and Wave 2 has begun with whole
-playlists and channels, search across transcripts and audio clean-up. See the [changelog](CHANGELOG.md) for
+Version 1.2: Wave 1 of the [build plan](docs/BUILD-PLAN.md) is complete, and Wave 2 has begun with whole
+playlists and channels, search across transcripts and audio clean-up, then Shorts from a video's best moments, a
+week's content calendar, quote cards, and bilingual and simpler translations. See the [changelog](CHANGELOG.md) for
 what changed, and [ADR 0001](docs/adr/0001-python-engine-as-plugin.md) for why it is built this way.
 
 ## Licence

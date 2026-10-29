@@ -6,10 +6,10 @@ work on your own computer:
 
 | Helper | What it does |
 |---|---|
-| **transcriber** | downloads video and audio from links (also whole playlists and channels), makes transcripts, subtitles, notes (summary, chapters, quotes and more) and clips, finds where something was said, cleans up the sound |
-| **translator** | translates transcripts, subtitles and any text, keeping your fixed terms and names |
+| **transcriber** | downloads video and audio from links (also whole playlists and channels), makes transcripts, subtitles, notes (summary, chapters, quotes and more) and clips, picks the best moments as clips or upright Shorts, finds where something was said, cleans up the sound |
+| **translator** | translates transcripts, subtitles, posts and any text, keeping your fixed terms and names; makes bilingual and simpler versions for learners |
 | **voice** | saves a voice (only with permission), reads text aloud in it, dubs a video into another language, changes the voice in a recording |
-| **publisher** | writes YouTube titles, a description and tags, and LinkedIn, X, Instagram and newsletter drafts |
+| **publisher** | writes YouTube titles, a description and tags, LinkedIn, X, Instagram and newsletter drafts, Shorts titles and captions, a week's content calendar and quote cards |
 
 You don't call the helpers by name: ask in plain words and Claude hands the work to the right one. A request that
 needs several ("dub this video into Hindi in my voice") runs them one after the other.
@@ -158,6 +158,34 @@ cutting it would put the picture out of step; for a trimmed sound-only file, ask
 You can also ask for only one of the two ("just cut the silence"). It takes about a minute for every 15 minutes of
 sound. Claude tells you how loud it was before and how much silence was cut.
 
+### Best moments and Shorts
+
+> Make 3 Shorts from the best moments of this video, with subtitles: https://...
+>
+> The best moments of the lesson as clips with captions.
+>
+> Make a vertical version of this video for Reels.
+
+Claude reads the whole transcript and picks up to 3 moments of 30 to 60 seconds. Each one makes one clear point, makes
+sense without the rest of the video, and starts with a line that makes people want to hear more (a question, a
+surprising fact, a strong claim), in the speaker's own words. A short video may only have one or two.
+
+| You ask for | File |
+|---|---|
+| the best moments | `<title> (clip 12-34 to 13-20) (captions).mp4` for each, with the captions burned in, plus `<title> (best moments).txt`: each moment's time, its point and its first sentence |
+| Shorts, Reels, TikToks or "vertical" | `<title> (vertical 12-34 to 13-20) (captions).mp4` for each, upright (1080 × 1920, the size YouTube Shorts, Instagram Reels and TikTok use), plus the same list |
+| a whole video made upright | `<title> (vertical).mp4` |
+
+**How the upright picture is made:** the full height of the picture is kept and its middle is cut out (9:16). If the
+speaker stands to one side, ask for "the left" or "the right" of the picture instead. For interviews, two people,
+slides or text on screen, ask for "the whole picture": it is shown in full across the middle of the Short, on a
+blurred, enlarged copy of itself, so nothing is cut off. The captions are added after
+the picture is cut, in short lines of large letters sized for a phone, above the spot where the apps show the title
+and buttons, so no caption loses its ends. Making a Short takes at most about as long as it plays (a 42-second
+Short took 35 seconds on 4 processor cores, 9 seconds on 24).
+
+To post them, ask the publisher for a Shorts package (below): a title and a caption for each Short.
+
 ## Translate (translator)
 
 > Translate it to Kannada.
@@ -178,6 +206,21 @@ skipped.
 **Glossary:** names and terms you want kept a certain way are saved in `Documents/VideoAudioAgents/glossary.md` and
 used in every translation. You can also edit that file yourself: one term per line, like
 `process map → keep in English`.
+
+> A bilingual English and Hindi version of the lesson.
+>
+> A simpler Hindi version for learners.
+>
+> Translate the posts into Kannada.
+
+| You ask for | File | What's in it |
+|---|---|---|
+| bilingual | `<title> (Hindi bilingual).txt` | each line of the transcript with its time, then its translation under it, then a blank line: for reading along or learning |
+| a simpler version | `<title> (Hindi simple).txt` | the same meaning in plain words and short sentences, line for line with the same times. In the transcript's own language too ("a simpler English version") |
+| posts in another language | `<title> (linkedin) (Hindi).txt`, `<title> (x-thread) (Hindi).txt`, ... | each of the publisher's drafts, written as a post for that language's readers, not word for word, with the same length limits as the original |
+
+A simpler version leaves out no point, name or number; it only says them more plainly. Subtitles can be made from it
+like from any translation ("Hindi simple subtitles").
 
 ## Voice and dubbing (voice)
 
@@ -265,9 +308,30 @@ YouTube, LinkedIn and X. Everything is saved next to the transcript:
 | quotes | `<title> (quotes).txt` | 5 short quotes in the speaker's exact words, each with its time |
 
 The posts use the speaker's own words and examples: no invented facts or numbers, and no clickbait titles. They are
-drafts for you to read and edit; nothing is ever posted for you. Titles and X posts are checked for length when they
-are saved, so they paste without being cut off. To get posts in another language, ask for a translation of the post
-files.
+drafts for you to read and edit; nothing is ever posted for you. Titles, X posts, Shorts titles and quote cards are
+checked for length when they are saved, so they paste without being cut off. To get posts in another language, ask
+for a translation of the post files (the translator keeps the same limits).
+
+### Shorts package, content calendar and quote cards
+
+> Make a Shorts package from this video: https://...
+>
+> A week of posts from this video.
+>
+> Quote cards from the talk.
+
+| You ask for | File | What's in it |
+|---|---|---|
+| a Shorts package | `<title> (shorts).txt`, with the Shorts themselves | for each of the 3 Shorts: its file and time, a title of at most 40 characters (what a phone shows in full) and a caption with hashtags, for YouTube Shorts, Instagram Reels or TikTok |
+| a content calendar | `<title> (calendar).txt` | 7 posts, one a day (`Day 1 (LinkedIn)`, `Day 2 (X)`, ...), mixing the platforms; each makes sense on its own and takes a different idea from the video; the X days are checked against X's 280-character limit |
+| quote cards | `<title> (quote-cards).txt` | 5 quotes in the speaker's exact words, one per line, each at most 120 characters, to put on square images |
+
+**A Shorts package takes two helpers:** the transcriber picks the best moments and makes the upright Shorts with
+captions, then the publisher writes their titles and captions. Claude runs them one after the other when you ask
+for a Shorts package; if the Shorts already exist, only the publisher runs.
+
+**Quote cards** are the words only: no images are made or downloaded. Put them on a square image in any design app
+(Canva, PowerPoint...). A long quote is trimmed to a part of it that stands on its own, never reworded.
 
 ## What stays on your computer
 
@@ -298,8 +362,8 @@ browser logins, up to 10 GB). Everything you made, in `Documents/VideoAudioAgent
 - Uses the processor only; using a graphics card to go faster comes in a later version.
 - Copy-protected services (Netflix and similar) are not supported.
 - You are responsible for following the terms of the sites you download from.
-- Still to come: picking the best moments for Shorts, vertical clips, who-said-what labels, narration with intro
-  music, podcast-ready files, and Kannada and Tamil spoken directly in the saved voice.
+- Still to come: who-said-what labels, narration with intro music, podcast-ready files, and Kannada and Tamil
+  spoken directly in the saved voice.
 
 ## Troubleshooting
 
