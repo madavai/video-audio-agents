@@ -1,7 +1,7 @@
 # Video Audio Agents — Build Plan
 
 **Repo:** https://github.com/madavai/video-audio-agents (public, MIT)
-**Status:** Wave 1 is built and released as 1.0.0 (phases 1 to 7). Wave 2 (release 1.1) is under way: Phase 8 is built (1.1.0). This file is kept accurate to what was built: where the build changed course, the section says so, and `docs/adr/0001-python-engine-as-plugin.md` explains why.
+**Status:** Wave 1 is built and released as 1.0.3 (phases 1 to 7: 1.0.0 plus three fixes), tagged `v1.0.3`. Wave 2 (release 1.1) is under way: Phase 8 is built (1.1.0). This file is kept accurate to what was built: where the build changed course, the section says so, and `docs/adr/0001-python-engine-as-plugin.md` explains why.
 **Scope:** the complete product, built in **two waves**. Wave 1 ships as release 1.0, Wave 2 as release 1.1.
 
 ---
@@ -537,7 +537,7 @@ Wave 2:
 | **6. Publisher** | `publisher.md`, tests for limits | Checklist 8 |
 | **7. Release 1.0** | USER-GUIDE, README final, CHANGELOG, ADR 0001, tag `v1.0.0`; fresh-PC install by one other person | Both installs work on a PC that never had Python |
 
-How Wave 1 went: phases 1 to 4 and 6 were merged as 0.5.0 (with the packaging change of §3), phase 5 as 0.6.0, and the release PR raised the version to 1.0.0, removed `docs/reference/` and brought this plan in line with the build. The owner tags `v1.0.0` after merging; the fresh-PC install and the checklist items that need the owner (3, 5 and 6 with their own voice, 9, the Madav repeat of 1) are listed in that PR.
+How Wave 1 went: phases 1 to 4 and 6 were merged as 0.5.0 (with the packaging change of §3), phase 5 as 0.6.0, and the release PR raised the version to 1.0.0, removed `docs/reference/` and brought this plan in line with the build. Three fixes followed (1.0.1 to 1.0.3), and the release was published as 1.0.3, tagged `v1.0.3` on main's merge of PR #15; the fresh-PC install and the checklist items that need the owner (3, 5 and 6 with their own voice, 9, the Madav repeat of 1) are listed in that PR.
 
 ### Wave 2 → release 1.1
 
