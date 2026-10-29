@@ -2,6 +2,30 @@
 
 The version goes up with every change people should receive: a phase adds one to the middle number, a fix to the last. 1.0.0 is the release, after Phase 7.
 
+## 1.1.0
+
+Phase 8 (Batch & search), the first part of Wave 2.
+
+### New
+- **Whole playlists and channels.** Give a playlist, a channel or a podcast feed and the transcriber reads the list
+  first (nothing is downloaded yet), says its name and how many videos it has, then does each video in turn, exactly
+  as for a single link, telling you after each one. The videos are kept together in
+  `Documents/VideoAudioAgents/<playlist name>/`, one folder per video. A channel gives its videos, newest first (its
+  Shorts and live streams only from a link to that tab). Lists with more than 50 videos are done 50 at a time, and
+  Claude asks which ones first; a very big channel is counted up to 2,000 ("more than 2,000"). Tried on a real
+  three-video YouTube playlist: three folders, each with its audio and transcript.
+- **Find where something was said.** "Where did he talk about X?" searches all your transcripts and answers with the
+  video, the time and the sentence. It finds the lines with all the words searched for, in any order, capitals or
+  not.
+- **Clean up the audio.** A recording is brought to -16 LUFS, the loudness podcast apps and YouTube expect for
+  speech, and the silence at its start and end is cut; saved as `<name> (clean audio).mp3` (a .wav stays a .wav). A
+  video keeps its picture and its full length, with its sound evened out, as `<name> (clean audio).mp4`. It measures
+  first and then writes, because measuring as it goes missed the loudness of short recordings by up to 8 LU; the
+  result lands within 1 LU of -16. About a minute for every 15 minutes of sound (a 4½-minute talk took 15 seconds).
+- Engine tools `list_links(url, start)`, `search_texts(query, folder)` and `clean_audio(file, loudness,
+  trim_silence)`; the transcriber's description now names playlists, searching and clean-up, so Claude hands those
+  requests to it.
+
 ## 1.0.3
 
 ### Fixes

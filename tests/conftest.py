@@ -72,6 +72,10 @@ def media(ffmpeg, tmp_path_factory):
          "[3]adelay=3000|3000[s];[1][2][s]amix=inputs=3:normalize=0[a]", "-map", "0:v", "-map", "[a]",
          "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", "narrated.mp4")
     make("-f", "lavfi", "-i", "sine=frequency=880:duration=11,volume=0.05", "-af", "adelay=3000", "beep.mp3")
+    # A quiet recording (about -27 LUFS) with 3 s of near-silence before the speech and 4 s after it.
+    make("-f", "lavfi", "-i", "anoisesrc=color=pink:duration=3:amplitude=0.001:seed=2", "-i", speech, "-f", "lavfi",
+         "-i", "anoisesrc=color=pink:duration=4:amplitude=0.001:seed=3", "-filter_complex",
+         "[0]aresample=16000[a];[1]volume=-12dB[s];[2]aresample=16000[b];[a][s][b]concat=n=3:v=0:a=1", "quiet.mp3")
     # A lesson page whose video is added by a script, so only a real browser finds it.
     (folder / "lesson.html").write_text(
         "<html><head><title>Lesson one</title></head><body><video id=v controls></video><script>"

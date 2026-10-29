@@ -10,13 +10,14 @@ from typing import Literal
 
 from mcp.server.mcpserver import Context, MCPServer
 
-from . import clips, media, models, progress, setup_check, speech, subtitles, texts, voices
+from . import audio, clips, media, models, progress, setup_check, speech, subtitles, texts, voices
 from . import transcribe as speech_to_text
 from .paths import data_dir
 
 mcp = MCPServer(
     "engine",
-    instructions="Downloads, transcribes, subtitles, cuts, voices and dubs video and audio. "
+    instructions="Downloads (also whole playlists), transcribes, searches transcripts, subtitles, cuts, cleans up, "
+    "voices and dubs video and audio. "
     "Every tool returns a small JSON object; files are never overwritten.",
 )
 
@@ -36,6 +37,17 @@ async def fetch_media(url: str, save: Literal["audio", "video", "both"], ctx: Co
     need to log in there the first time). Files go into Documents/VideoAudioAgents/<title>/, or <folder>/<title>/.
     Returns {title, folder, files, used_browser}. One link per call."""
     return json.dumps(await progress.run(ctx, media.fetch_media, url, save, folder))
+
+
+@mcp.tool()
+async def list_links(url: str, ctx: Context, start: int = 1) -> str:
+    """The videos of a playlist or channel link (YouTube and most video sites, or a podcast feed), without
+    downloading anything: up to 50 links with their titles, from position `start` (1 = the first; call again with
+    start=51 for the next ones). A channel gives its videos, newest first (not its Shorts or live streams, unless the
+    link is to that tab). total is how many the list has (counting stops at 2000: "more than 2000"). folder is
+    Documents/VideoAudioAgents/<list title>, to pass to fetch_media so the list's videos are kept together; then
+    fetch each link as usual. Returns {title, total, first, folder, links, titles}."""
+    return json.dumps(await progress.run(ctx, media.list_links, url, start))
 
 
 @mcp.tool()
@@ -62,6 +74,19 @@ def save_text(next_to: str, label: str, text: str, ext: Literal["txt", "md", "sr
     (a blank line between posts, each at most 280 characters as X counts them). Returns {file}."""
     try:
         return json.dumps(texts.save_text(next_to, label, text, ext, append_to))
+    except Exception as e:
+        raise progress.plain_error(e) from e
+
+
+@mcp.tool()
+def search_texts(query: str, folder: str | None = None) -> str:
+    """Finds where something was said: the lines of the transcripts (every .txt file under
+    Documents/VideoAudioAgents, or under folder) that contain all the words of query, in any order and any case.
+    Each match has the file, the line number, `at` (the time in the recording as minutes:seconds, from the line's
+    "[12.5s]" stamp; null for a transcript without times) and the line's text. At most 50 are listed; match_count
+    says how many there are. Returns {matches: [{file, line, at, text}], match_count, files_searched}."""
+    try:
+        return json.dumps(texts.search_texts(query, folder))
     except Exception as e:
         raise progress.plain_error(e) from e
 
@@ -115,6 +140,18 @@ async def merge_audio_video(video_file: str, audio_file: str, ctx: Context, segm
     voice taken out by the music keeper, a 0.1 GB model downloaded once; this takes about as long as the video
     plays). Without segments_file the whole sound is replaced. Returns {output_file}."""
     return json.dumps(await progress.run(ctx, clips.merge_audio_video, video_file, audio_file, segments_file))
+
+
+@mcp.tool()
+async def clean_audio(file: str, ctx: Context, loudness: bool = True, trim_silence: bool = True) -> str:
+    """Cleans up the sound of a recording: loudness brings it to -16 LUFS, the loudness podcast apps and YouTube
+    expect for speech (quiet recordings get louder, loud ones quieter, peaks kept under -1.5 dB); trim_silence cuts
+    the silence at the start and end (0.3 s is kept). An audio file comes back as the same kind of file, named
+    "<name> (clean audio).mp3" (or .wav, .m4a...). A video comes back as "<name> (clean audio).mp4" with the same
+    picture and the sound at -16 LUFS; it keeps its full length, because cutting the silence would put the picture
+    out of step (clean the video's .mp3 for a trimmed audio file). About a minute for every 15 minutes of sound.
+    Returns {output_file, seconds, silence_cut_seconds, loudness_before} (loudness_before in LUFS)."""
+    return json.dumps(await progress.run(ctx, audio.clean_audio, file, loudness, trim_silence))
 
 
 @mcp.tool()

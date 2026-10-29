@@ -43,6 +43,10 @@ When someone asks you to install this repository, do not clone it. Run:
 > Transcript of these two links, no timestamps, with chapters and a summary.
 >
 > Subtitles for this video. · Cut 01:00 to 01:30 out of it, with captions.
+>
+> Transcripts of every video in this playlist. · Where did he talk about inflation?
+>
+> Clean up the audio of my recording.
 
 **Translations** (the translator)
 
@@ -68,8 +72,8 @@ Say "update video audio agents". Or turn on auto-update: `/plugin` → Marketpla
 
 ## Limits
 
-- Runs on your computer (Windows first; Mac is checked in version 1.1). Not available in claude.ai in a browser or
-  on phones.
+- Runs on your computer (Windows first; Mac is checked in a later version). Not available in claude.ai in a
+  browser or on phones.
 - Voice work needs about 6 GB of free memory and is slow on an ordinary computer (5 to 8 seconds of work per second
   of speech). English, Hindi, French and Spanish are spoken directly in the saved voice; Kannada and Tamil are read
   by an online reader voice first, so they match it less closely.
@@ -77,12 +81,13 @@ Say "update video audio agents". Or turn on auto-update: `/plugin` → Marketpla
 - You are responsible for following the terms of the sites you download from. The voice helper only saves a voice
   that is yours or that you have permission to use.
 - The helpers never post anything anywhere: posts are drafts for you to review.
-- Coming in version 1.1: whole playlists, best-moment Shorts, search across transcripts, audio clean-up, speaker
-  labels, narration with music, podcast files, graphics-card speed-up and Mac.
+- Still to come: best-moment Shorts, speaker labels, narration with music, podcast files, graphics-card speed-up
+  and Mac.
 
 ## Status
 
-Version 1.0: Wave 1 of the [build plan](docs/BUILD-PLAN.md) is complete. See the [changelog](CHANGELOG.md) for
+Version 1.1: Wave 1 of the [build plan](docs/BUILD-PLAN.md) is complete, and Wave 2 has begun with whole
+playlists and channels, search across transcripts and audio clean-up. See the [changelog](CHANGELOG.md) for
 what changed, and [ADR 0001](docs/adr/0001-python-engine-as-plugin.md) for why it is built this way.
 
 ## Licence

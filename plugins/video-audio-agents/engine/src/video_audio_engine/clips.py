@@ -73,31 +73,40 @@ def merge_audio_video(job, video_file: str, audio_file: str, segments_file: str 
     return {"output_file": str(output)}
 
 
-def run(job, args: list, output: Path, seconds_long: float, label: str, cwd=None, start: float = 0) -> None:
-    """Runs ffmpeg, reporting progress (from `start`%, when an earlier step of the job came first). On Stop or
-    failure: stops ffmpeg and removes the half-made output."""
+def run(job, args: list, output: Path | None, seconds_long: float, label: str, cwd=None, start: float = 0,
+        end: float = 100) -> str:
+    """Runs ffmpeg, reporting progress from `start`% to `end`% (when the job has other steps). On Stop or failure:
+    stops ffmpeg and removes the half-made output. With output None nothing is written (a measuring pass), and
+    ffmpeg's messages are returned."""
     ffmpeg = str(models.ensure_ffmpeg() / f"ffmpeg{EXE}")
-    command = [ffmpeg, "-hide_banner", "-nostdin", "-loglevel", "error", "-progress", "pipe:1", *args, "-n", str(output)]
+    command = [ffmpeg, "-hide_banner", "-nostdin", "-nostats", "-loglevel", "error" if output else "info",
+               "-progress", "pipe:1", *args, *(["-n", str(output)] if output else ["-f", "null", "-"])]
     job.report(start, label)
-    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, cwd=cwd,
-                               creationflags=NO_WINDOW)
-    try:
-        for line in process.stdout:
-            if line.startswith("out_time_us=") and line.strip()[12:].isdigit():
-                pct = min(99.0, int(line.strip()[12:]) / 1e6 / max(seconds_long, 0.1) * 100)
-                job.report(start + pct * (100 - start) / 100, f"{label}... {int(pct)}%")
-        errors = process.stderr.read()
-        process.wait()
-    except BaseException:  # Stop (or anything else): end ffmpeg now
-        process.kill()
-        process.wait()
-        output.unlink(missing_ok=True)
-        raise
+    # The messages go to a file: a long measuring pass writes more than a pipe holds, which would stall ffmpeg.
+    with tempfile.TemporaryFile("w+", encoding="utf-8", errors="replace") as messages:
+        process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=messages, text=True, cwd=cwd,
+                                   creationflags=NO_WINDOW)
+        try:
+            for line in process.stdout:
+                if line.startswith("out_time_us=") and line.strip()[12:].isdigit():
+                    pct = min(99.0, int(line.strip()[12:]) / 1e6 / max(seconds_long, 0.1) * 100)
+                    job.report(start + pct * (end - start) / 100, f"{label}... {int(pct)}%")
+            process.wait()
+        except BaseException:  # Stop (or anything else): end ffmpeg now
+            process.kill()
+            process.wait()
+            if output:
+                output.unlink(missing_ok=True)
+            raise
+        messages.seek(0)
+        said = messages.read()
     if process.returncode != 0:
-        output.unlink(missing_ok=True)
-        log.error("ffmpeg failed: %s\n%s", command, errors)
-        raise ToolError(f"{label} failed ({errors.strip().splitlines()[-1] if errors.strip() else 'ffmpeg stopped'}).")
-    job.report(100, f"{label}: done")
+        if output:
+            output.unlink(missing_ok=True)
+        log.error("ffmpeg failed: %s\n%s", command, said)
+        raise ToolError(f"{label} failed ({said.strip().splitlines()[-1] if said.strip() else 'ffmpeg stopped'}).")
+    job.report(end, f"{label}: done")
+    return said
 
 
 def probe(file: Path, *args) -> str:

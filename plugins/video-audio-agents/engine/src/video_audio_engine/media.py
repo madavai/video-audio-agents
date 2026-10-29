@@ -1,4 +1,6 @@
-"""fetch_media: download the video, the audio or both from a link, into one folder per link."""
+"""fetch_media: download the video, the audio or both from a link, into one folder per link.
+list_links: the links of a playlist or channel, so each can be fetched in turn."""
+import itertools
 import logging
 import tempfile
 from pathlib import Path
@@ -15,6 +17,8 @@ log = logging.getLogger("engine.media")
 KEEP = {"audio": [".mp3"], "video": [".mp4"], "both": [".mp4", ".mp3"]}  # the finished files per choice
 WHAT = {"audio": "the audio", "video": "the video", "both": "the video and audio"}
 AGENT = f"video-audio-agents (https://github.com/madavai/video-audio-agents) yt-dlp/{yt_dlp.version.__version__}"
+LIST_SIZE = 50  # links per answer: a channel can have thousands of videos
+COUNT_UP_TO = 2000  # a list is read at about 100 videos a second
 
 
 class ToLog:
@@ -40,12 +44,8 @@ def fetch_media(job, url: str, save: str, folder: str | None = None) -> dict:
     try:
         title = read_link(url)
     except yt_dlp.utils.DownloadError as e:
-        if "DRM" in str(e):
-            raise ToolError("This video is copy-protected (DRM), and copy-protected videos aren't supported.") from e
-        if "HTTP Error 404" in str(e) or "HTTP Error 410" in str(e):
-            raise ToolError("This link doesn't exist any more (the site says \"not found\"). Check the link.") from e
-        if "getaddrinfo" in str(e) or "Name or service not known" in str(e) or "nodename nor servname" in str(e):
-            raise ToolError("This site can't be reached. Check the link and the internet connection.") from e
+        if known_problem(e):
+            raise ToolError(known_problem(e)) from e
         log.info("Not directly downloadable, opening it in the browser: %s", e)
         found = browser.find_stream(job, url)
         stream, title, cookies, referer = found["stream"], found["title"], found["cookies"], found["referer"]
@@ -84,6 +84,66 @@ def read_link(url: str) -> str:
                            **js_runtime()}) as ydl:
         title = ydl.extract_info(url, download=False).get("title")
     return wiki_file_name(url) or title
+
+
+def known_problem(error) -> str | None:
+    """A plain sentence for the download errors people can do something about."""
+    text = str(error)
+    if "DRM" in text:
+        return "This video is copy-protected (DRM), and copy-protected videos aren't supported."
+    if "HTTP Error 404" in text or "HTTP Error 410" in text:
+        return "This link doesn't exist any more (the site says \"not found\"). Check the link."
+    if "getaddrinfo" in text or "Name or service not known" in text or "nodename nor servname" in text:
+        return "This site can't be reached. Check the link and the internet connection."
+    return None
+
+
+def list_links(job, url: str, start: int = 1) -> dict:
+    """The videos of a playlist, channel or podcast feed, without downloading them: up to LIST_SIZE links from
+    position `start` (1 is the first), and how many the list has (counted up to COUNT_UP_TO)."""
+    job.report(0, "Reading the list")
+    start, links, titles, total = max(1, start), [], [], 0
+    ceiling = max(COUNT_UP_TO, start + LIST_SIZE - 1)
+    try:
+        with yt_dlp.YoutubeDL({"quiet": True, "extract_flat": "in_playlist", "logger": ToLog(),
+                               "http_headers": identify(url), **js_runtime()}) as ydl:
+            info = ydl.extract_info(url, download=False, process=False)
+            for _ in range(3):  # a link that leads on to the list (a video link with &list=... in it)
+                if info.get("_type") not in ("url", "url_transparent"):
+                    break
+                info = ydl.extract_info(info["url"], download=False, process=False, ie_key=info.get("ie_key"))
+            if "entries" not in info:
+                raise ToolError("This link is a single video, not a playlist or channel.")
+            title = info.get("title") or "Playlist"
+            entries = iter(info["entries"] or [])
+            first = next(entries, None)
+            if first and first.get("_type") == "playlist":  # a channel's tabs (Videos, Live, Shorts): its videos
+                entries = iter(first.get("entries") or [])
+                first = next(entries, None)
+            for entry in itertools.chain([first] if first else [], entries):  # read page by page as they come
+                link = entry.get("url") or entry.get("webpage_url")
+                if not link:
+                    continue
+                total += 1
+                if total > ceiling:
+                    break
+                if total >= start and len(links) < LIST_SIZE:
+                    links.append(link)
+                    titles.append(entry.get("title") or link)
+                if total % 100 == 0:
+                    job.report(total / ceiling * 100, f"Counting the videos: {total} so far")
+    except yt_dlp.utils.YoutubeDLError as e:
+        log.info("Couldn't list %s: %s", url, e)
+        if "Unsupported URL" in str(e):
+            raise ToolError("This page has no playlist or channel that can be read (pages behind a login can't "
+                            "be listed).") from e
+        raise ToolError(known_problem(e) or "This playlist or channel couldn't be read: check the link (a private or "
+                        "removed list can't be read).") from e
+    if not links:
+        raise ToolError(f"This list has only {total} videos." if total else "This list is empty.")
+    job.report(100, "Listed")
+    return {"title": title, "total": total if total <= ceiling else f"more than {ceiling}", "first": start,
+            "folder": str(paths.output_root() / paths.safe_name(title, limit=40)), "links": links, "titles": titles}
 
 
 def wikimedia(url: str) -> bool:

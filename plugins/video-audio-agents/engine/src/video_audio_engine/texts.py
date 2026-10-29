@@ -2,7 +2,8 @@
 from, as "name (label).ext". Long texts can be saved in parts: the later parts are appended. Titles and X posts
 longer than their limit are refused, so every draft can be pasted as it is.
 translated_segments: pairs a translated transcript with the original timings, checking nothing was lost (and, for
-dubbing, that every line can be said in its time)."""
+dubbing, that every line can be said in its time).
+search_texts: finds where something was said, across all the transcripts."""
 import json
 import re
 from collections import Counter
@@ -159,6 +160,42 @@ def stamped_lines(text: str) -> list:
         elif raw.strip() and lines:
             lines[-1][1] = f"{lines[-1][1]} {raw.strip()}".strip()
     return [(key, text) for key, text in lines if text]
+
+
+MATCHES = 50  # matches listed per search; match_count says how many there are
+
+
+def search_texts(query: str, folder: str | None = None) -> dict:
+    """The lines of the transcripts (every .txt file under folder) that hold all the words of query, in any case,
+    with the time of each line in the recording (its "[12.5s]" stamp, if it has one)."""
+    root = Path(folder) if folder else paths.output_root()
+    if not root.is_dir():
+        raise ToolError(f"The folder {root} doesn't exist." if folder else "There are no transcripts yet.")
+    words = query.casefold().split()
+    if not words:
+        raise ToolError("Say what to search for.")
+    from .clips import clock  # here, because clips uses this module
+    matches, count, files = [], 0, 0
+    for file in sorted(root.rglob("*.txt")):
+        files += 1
+        for number, line in enumerate(file.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
+            folded = line.casefold()
+            if not all(word in folded for word in words):
+                continue
+            count += 1
+            if len(matches) < MATCHES:
+                stamp = STAMPED.match(line)
+                matches.append({"file": str(file), "line": number, "at": clock(float(stamp[1])) if stamp else None,
+                                "text": excerpt(line.strip(), folded.strip().find(words[0]))})
+    return {"matches": matches, "match_count": count, "files_searched": files}
+
+
+def excerpt(line: str, at: int, size: int = 200) -> str:
+    """A long line (a paragraph, when a transcript has no times) cut to the part around the match."""
+    if len(line) <= size:
+        return line
+    start = max(0, min(at - size // 3, len(line) - size))
+    return ("..." if start else "") + line[start:start + size] + ("..." if start + size < len(line) else "")
 
 
 def existing(file: str) -> Path:

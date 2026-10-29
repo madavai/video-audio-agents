@@ -1,7 +1,7 @@
 # Video Audio Agents — Build Plan
 
 **Repo:** https://github.com/madavai/video-audio-agents (public, MIT)
-**Status:** Wave 1 is built and released as 1.0.0 (phases 1 to 7). Wave 2 (release 1.1) is next. This file is kept accurate to what was built: where the build changed course, the section says so, and `docs/adr/0001-python-engine-as-plugin.md` explains why.
+**Status:** Wave 1 is built and released as 1.0.0 (phases 1 to 7). Wave 2 (release 1.1) is under way: Phase 8 is built (1.1.0). This file is kept accurate to what was built: where the build changed course, the section says so, and `docs/adr/0001-python-engine-as-plugin.md` explains why.
 **Scope:** the complete product, built in **two waves**. Wave 1 ships as release 1.0, Wave 2 as release 1.1.
 
 ---
@@ -173,9 +173,9 @@ Shared rules: one big model in memory at a time (speech-to-text, voice, english,
 
 | Tool | Inputs | Output | Behaviour |
 |---|---|---|---|
-| `list_links(url)` | playlist or channel link | `{links, titles}` | yt-dlp flat extraction; the agent then runs the normal flow per link. |
-| `search_texts(query, folder?)` | | `{matches: [{file, line, text}]}` | Case-insensitive search across all transcripts. |
-| `clean_audio(file, loudness, trim_silence)` | | `{output_file}` | ffmpeg `loudnorm` to −16 LUFS; silence trimmed at start/end. |
+| `list_links(url, start?)` | playlist, channel or podcast feed link | `{title, total, first, folder, links, titles}` | yt-dlp flat extraction; the agent then runs the normal flow per link. **Built in 1.1.0:** 50 links per call from `start`; `total` counted up to 2000 (about 100 a second), else "more than 2000"; a channel's tabs give its Videos tab; `folder` is `Documents/VideoAudioAgents/<list title>/`, passed to `fetch_media` so a list's videos stay together. Tested on a generated RSS feed (a playlist page yt-dlp reads with links and titles). |
+| `search_texts(query, folder?)` | | `{matches: [{file, line, at, text}], match_count, files_searched}` | Case-insensitive search across all transcripts. **Built in 1.1.0:** every `.txt` under the folder; a line matches when it holds all the query's words, in any order; `at` is the line's `[12.5s]` stamp as minutes:seconds; 50 matches listed, long paragraph lines cut to 200 characters around the match. |
+| `clean_audio(file, loudness, trim_silence)` | | `{output_file, seconds, silence_cut_seconds, loudness_before}` | ffmpeg `loudnorm` to −16 LUFS; silence trimmed at start/end. **Built in 1.1.0:** two passes (one pass missed the target by up to 8 LU on short recordings): the first measures the loudness and finds the silences (`silencedetect` at −45 dB for 0.5 s, 0.3 s kept), the second trims and applies the measured `loudnorm`. Audio keeps its format (`<name> (clean audio).<ext>`, cover art dropped); a video gives `<name> (clean audio).mp4`, picture copied, full length (its silence isn't trimmed, which would put the picture out of step). `audio.py`. |
 | `crop_vertical(video_file, focus?)` | focus ∈ center / left / right | `{output_file}` | 9:16 crop for Shorts/Reels, 1080×1920. |
 | `mix_music(voice_file, music_file, music_volume, intro_file?, outro_file?)` | | `{output_file}` | Music ducked under the voice; intro/outro the user supplies. |
 | `export_podcast(audio_file, chapters, title, artwork?)` | chapters from the transcript | `{output_file}` | mp3 at −16 LUFS with embedded chapter markers and tags. |
@@ -548,6 +548,8 @@ How Wave 1 went: phases 1 to 4 and 6 were merged as 0.5.0 (with the packaging ch
 | **10. Narration & podcast** | `mix_music`, `export_podcast`, `set_pronunciations`, voice Wave 2 section | Checklist 13 |
 | **11. Speakers & GPU** | `speakers.py`, `--speakers` and `--gpu` in the setup skill, CUDA path | Checklist 15, 16 |
 | **12. IndicF5 & Mac** | Kannada/Tamil cloning (`--indic`), Mac verification, House-theme avatars for Madav's Agent Studio, tag `v1.1.0` | Checklist 17; checklist 1–10 pass on a Mac |
+
+How Wave 2 is going: Phase 8 was built as 1.1.0, because every phase raises the middle number (CLAUDE.md), so the release at the end of Wave 2 will carry a higher number than the `v1.1.0` planned above.
 
 ---
 
