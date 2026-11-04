@@ -1,5 +1,6 @@
 """The voice rules that need no model: text pieces, cut points, the 10-second sample, dubbing timing, speeds,
 language routing, consent, recording, and one big model in memory at a time."""
+import random
 import sys
 import types
 
@@ -27,6 +28,31 @@ def test_text_pieces_are_sentences_of_at_most_300_characters():
     long_sentence = "word " * 200  # 1000 characters without a full stop: split at spaces
     assert all(len(p) <= 300 for p in speech.text_pieces(long_sentence))
     assert speech.text_pieces("पहला वाक्य। दूसरा वाक्य।", limit=12) == ["पहला वाक्य।", "दूसरा वाक्य।"]  # Hindi full stop
+
+
+def test_text_pieces_keep_the_order_of_the_text():
+    """A sentence over 300 characters used to be split off before the sentences that came just before it."""
+    quote = "He said: " + "a very long quotation " * 20 + "and that was that."  # one sentence of over 400 characters
+    text = f"First short one. Second one is a little longer than that. {quote} After it comes this. And then the end."
+    pieces = speech.text_pieces(text)
+    assert " ".join(pieces) == text and all(len(p) <= 300 for p in pieces)
+    for seed in range(20):  # sentences of any length, some of them very long
+        rng = random.Random(seed)
+        text = " ".join(" ".join(f"w{i}x" for i in range(rng.choice([3, 12, 40, 90]))) + "." for _ in range(15))
+        assert " ".join(speech.text_pieces(text)) == text
+
+
+def test_a_heading_is_spoken_with_the_sentence_after_it():
+    heading = "NASA Astronaut, STEM Creator Connect with Students for STEM Day."
+    sentence = ("Students across the country will have the opportunity to connect directly with the International "
+                "Space Station during a live, interactive in-flight call with NASA astronaut Anil Menon and Mark Rober, "
+                "STEM content creator and founder of ClassCrunchLabs Foundation.")  # 263 characters: with it, over 300
+    assert len(heading) + len(sentence) > 300
+    assert speech.text_pieces(f"{heading} {sentence}") == [f"{heading} {sentence}"]  # one piece, a little over the limit
+    long_sentence = "word " * 70 + "end."  # over 300 characters: split, but the heading goes first, in the same piece
+    pieces = speech.text_pieces(f"{heading} {long_sentence}")
+    assert pieces[0].startswith(heading + " word") and " ".join(pieces) == f"{heading} {long_sentence}"
+    assert all(len(p) <= 300 for p in speech.text_pieces(" ".join([heading] * 10)))  # pieces that are long enough keep the limit
 
 
 def test_times_and_markdown_are_not_read_aloud():

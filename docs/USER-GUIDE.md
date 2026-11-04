@@ -8,7 +8,7 @@ work on your own computer:
 |---|---|
 | **transcriber** | downloads video and audio from links (also whole playlists and channels), makes transcripts, subtitles, notes (summary, chapters, quotes and more) and clips, picks the best moments as clips or upright Shorts, finds where something was said, cleans up the sound |
 | **translator** | translates transcripts, subtitles, posts and any text, keeping your fixed terms and names; makes bilingual and simpler versions for learners |
-| **voice** | saves a voice (only with permission), reads text aloud in it, dubs a video into another language, changes the voice in a recording |
+| **voice** | saves a voice (only with permission), reads text aloud in it (a narration, a podcast episode, an audiobook), adds your own music, intro and outro, makes podcast-ready files with chapters, learns how to say names, dubs a video into another language, changes the voice in a recording |
 | **publisher** | writes YouTube titles, a description and tags, LinkedIn, X, Instagram and newsletter drafts, Shorts titles and captions, a week's content calendar and quote cards |
 
 You don't call the helpers by name: ask in plain words and Claude hands the work to the right one. A request that
@@ -276,6 +276,10 @@ What you get:
 | reading aloud | `<name> (<voice> voice).mp3` next to the file read; for text you typed, `<its first words> (<voice> voice).mp3` in `Documents/VideoAudioAgents/Speech/` (or a folder you name) |
 | dubbing | `<title> (<language> dubbing) (<voice> voice).mp3` and the same name `.mp4`, with the translation it speaks, `<title> (<language> dubbing).txt` |
 | a changed voice | `<name> (<voice> voice).mp3` next to the original |
+| narration with music | `<narration name> (with music).mp3` next to the narration, in stereo |
+| a podcast episode | `<name> (podcast).mp3` next to the audio it is made from |
+| an audiobook | `<book> - 1 <chapter> (<voice> voice).mp3` for each chapter, and `<book> - whole (<voice> voice).mp3` if you ask for it, in `Documents/VideoAudioAgents/Speech/` or the folder of the text |
+| names said right | `<voice>.pronunciations.json` beside the voice's `.wav` |
 
 **It is slow:** about 5 to 8 seconds of work per second of speech on an ordinary computer, plus about as long as
 the video plays to keep a dub's music (dubbing a 2-minute clip takes about 12 to 17 minutes), and it needs about 6 GB
@@ -284,6 +288,43 @@ at most 4 hours, so dub or read at most about 40 minutes at a time (ask for a cl
 first voice job downloads the voice models (1 to 3 GB each) unless you set up "with voice".
 
 Speech made by the voice models carries an inaudible watermark that marks it as made by AI.
+
+### Narration, music and podcast files
+
+> Narrate this blog post in my voice: C:\Users\me\Documents\post.txt
+>
+> Make an audiobook of this story, one file for each chapter and the whole book.
+>
+> Put my music under this narration, with my intro and outro: music.mp3, intro.mp3, outro.mp3.
+>
+> The voice says "Madav" wrongly. It should sound like "Maa-dhuv".
+>
+> Make this narration a podcast episode with chapters, called "Episode 1".
+
+**Narration:** give the text as a file (plain text or Markdown) or type or paste it. Claude reads it in the saved
+voice, in the language of the text (the languages above). A long text is read in parts, and Claude says first how
+long it will take. For an audiobook, each chapter is its own file; the whole book in one file is one more reading of
+all the text, so it takes as long as all the chapters again, and Claude asks first.
+
+**Your own music:** only music files you give are used. Claude never looks for music on the internet. The music plays
+all through the narration (a short piece repeats), turns itself down while the voice speaks, so every word stays
+clear, and comes up again in the pauses; it fades in at the start and out at the end. Your intro plays before the
+voice and your outro after it, as loud as the voice. You choose how loud the music is in the pauses ("quieter",
+"louder"); how loud your files were made doesn't matter, because each is measured first. Every try is saved as a new
+file (`... (with music).mp3`, then `... (with music) (2).mp3`), so you can compare them. It takes about a minute for
+every 15 minutes of sound.
+
+**Names:** if the voice says a name wrongly, tell Claude how it should sound, written with hyphens between the
+syllables ("Madav" → "Maa-dhuv"). The list is kept with the voice (`<voice>.pronunciations.json` in the voices
+folder) and used whenever that voice speaks, dubbing too, for that whole word in any case ("Madav's" as well). It only
+counts for speech made after, so Claude reads the part again.
+
+**A podcast file:** `<name> (podcast).mp3` has the loudness podcast apps expect (-16 LUFS), the episode title, your
+cover picture if you give one (a .jpg or .png of your own; podcast apps like a square one, 1400 × 1400 pixels or
+more) and the chapters written into the file, so apps show them. The chapters come from a transcript of the finished
+audio, music included, so that their times fit: Claude has the transcriber make it and its chapters first, then the
+voice helper makes the file. The podcast file takes about a minute for every 15 minutes of sound. Nothing is
+uploaded or posted: you put the file on your podcast host yourself.
 
 ## Titles, descriptions and posts (publisher)
 
@@ -362,8 +403,7 @@ browser logins, up to 10 GB). Everything you made, in `Documents/VideoAudioAgent
 - Uses the processor only; using a graphics card to go faster comes in a later version.
 - Copy-protected services (Netflix and similar) are not supported.
 - You are responsible for following the terms of the sites you download from.
-- Still to come: who-said-what labels, narration with intro music, podcast-ready files, and Kannada and Tamil
-  spoken directly in the saved voice.
+- Still to come: who-said-what labels, and Kannada and Tamil spoken directly in the saved voice.
 
 ## Troubleshooting
 

@@ -22,6 +22,7 @@ dependencies = [
     "psutil>=6",
     "demucs==4.1.0",  # takes the voice out of a video's sound, so a dub keeps the music
     "setuptools>=75,<81",  # pkg_resources, without which Chatterbox's watermark (marks speech as AI-made) won't load
+    "mutagen==1.48.1",  # tags and chapter markers in the podcast mp3
 ]
 
 [project.scripts]

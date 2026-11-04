@@ -10,7 +10,8 @@ from mcp.client.stdio import StdioServerParameters, stdio_client
 
 TOOLS = {"check_setup", "fetch_media", "transcribe", "save_text", "make_subtitles", "cut_clip", "merge_audio_video",
          "translated_segments", "list_voices", "save_voice", "record_voice", "speak", "speak_timed", "change_voice",
-         "list_links", "search_texts", "clean_audio", "crop_vertical"}
+         "list_links", "search_texts", "clean_audio", "crop_vertical", "mix_music", "export_podcast",
+         "set_pronunciations"}
 
 
 async def talk_to_engine(data_dir, calls):
@@ -94,3 +95,28 @@ def test_details_reach_the_log_file(private_data):
     subprocess.run([sys.executable, "-c", code], env={**os.environ, "VAA_DATA": str(private_data)}, check=True,
                    capture_output=True)
     assert "ERROR engine: the details" in (private_data / "engine.log").read_text(encoding="utf-8")
+
+
+def test_music_and_podcast_tools_over_mcp_with_progress(with_models, copy_of):
+    voice, bed = copy_of("bursts.wav"), copy_of("bed.mp3")
+    chapters = voice.with_name("bursts (chapters).md")
+    chapters.write_text("00:00 Start\n00:07 Middle\n", encoding="utf-8")
+    calls = [
+        ("mix_music", {"voice_file": str(voice), "music_file": str(bed), "music_volume": 0.3}),
+        ("export_podcast", lambda mixed: {"audio_file": mixed["output_file"], "chapters": str(chapters),
+                                          "title": "Hello"}),
+    ]
+    _, results, progress = anyio.run(talk_to_engine, with_models, calls)
+    assert not results[0].is_error and not results[1].is_error, results
+    mixed, episode = (json.loads(result.content[0].text) for result in results)
+    assert mixed == {"output_file": str(voice.with_name("bursts (with music).mp3")), "seconds": 15.0}
+    assert episode["output_file"] == str(voice.with_name("bursts (with music) (podcast).mp3")) and episode["chapters"] == 2
+    assert progress[0][-1] == "Mixing the music under the voice: done" and progress[1][-1] == "Making the podcast file: done"
+
+
+def test_the_pronunciation_tool_takes_word_pairs():
+    from video_audio_engine import server
+    tools = anyio.run(server.mcp.list_tools)
+    schema = next(tool for tool in tools if tool.name == "set_pronunciations").input_schema
+    assert schema["properties"]["pairs"]["additionalProperties"] == {"type": "string"}
+    assert set(schema["required"]) == {"voice", "pairs"}

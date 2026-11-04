@@ -120,6 +120,47 @@ def test_speaking_a_transcript_leaves_the_times_out(stand_in, voice, tmp_path):
     assert again["output_file"] == str(tmp_path / "Hindi reading (Test voice).mp3")
 
 
+def test_pronunciations_change_what_the_voice_is_given_to_say(stand_in, voice):
+    assert speech.set_pronunciations("Test", {"Madav": "Maa-dhuv"}) == {"count": 1}
+    folder = paths.output_root() / "voices"
+    assert (folder / "Test.pronunciations.json").is_file() and voices.list_voices()["voices"] == ["Test"]  # beside it
+    result = run(speech.speak, "Test", "English", "as_made", "Madav's talk. Madavan met MADAV. Ask Madav!")
+    # Whole words in any case, also with an apostrophe; part of a longer word is left alone.
+    assert stand_in.texts == ["Maa-dhuv's talk. Madavan met Maa-dhuv. Ask Maa-dhuv!"]
+    assert result["output_file"].endswith("Madav's talk (Test voice).mp3")  # the file is named from the words as written
+    assert run(speech.speak, "Test", "English", "as_made", "Nothing to change.")["seconds"] > 0
+    assert stand_in.texts[-1] == "Nothing to change."
+
+
+def test_the_list_grows_changes_and_shrinks_and_serves_every_language(stand_in, voice):
+    speech.set_pronunciations("Test", {"Madav": "Maa-dhuv"})
+    assert speech.set_pronunciations("Test", {"Anna": "Ah-na", "madav": "Maa-dhav"}) == {"count": 2}  # one word, once
+    assert speech.set_pronunciations("Test", {"ANNA": ""}) == {"count": 1}  # an empty respelling removes it
+    speech.set_pronunciations("Test", {"राजू": "रा-जू", "New York": "Noo York"})
+    run(speech.speak, "Test", "Hindi", "as_made", "राज और राजू और राजूजी। Visit new york today.")
+    assert stand_in.texts == ["राज और रा-जू और राजूजी। Visit Noo York today."]  # not "राज" or "राजूजी": other words
+
+
+def test_dubbing_uses_the_list_too(stand_in, voice, tmp_path):
+    speech.set_pronunciations("Test", {"Madav": "Maa-dhuv"})
+    segments = [{"start": 0.0, "end": 3.0, "text": "Madav said hello to everyone here."},
+                {"start": 5.0, "end": 9.0, "text": "Then Madav went home and had some tea."}]  # 2 s apart: not joined
+    file = tmp_path / "Lesson (English dubbing).segments.json"
+    file.write_text(json.dumps(segments), encoding="utf-8")
+    run(speech.speak_timed, str(file), "Test", "English", "as_made")
+    assert stand_in.texts == ["Maa-dhuv said hello to everyone here.", "Then Maa-dhuv went home and had some tea."]
+
+
+def test_pronunciations_ask_for_what_is_missing(stand_in, voice):
+    with pytest.raises(ToolError, match='no saved voice called "Bob"'):
+        speech.set_pronunciations("Bob", {"Madav": "Maa-dhuv"})
+    with pytest.raises(ToolError, match="at least one word"):
+        speech.set_pronunciations("Test", {})
+    with pytest.raises(ToolError, match="needs the word as it is written"):
+        speech.set_pronunciations("Test", {" ": "x"})
+    assert not (paths.output_root() / "voices" / "Test.pronunciations.json").exists()  # nothing half saved
+
+
 def test_kannada_is_read_by_a_reader_voice_and_changed_into_the_saved_voice(stand_in, voice):
     result = run(speech.speak, "Test", "Kannada", "as_made", "ನಮಸ್ಕಾರ.")
     assert stand_in.texts == []  # not spoken directly: the reader's audio was converted, keeping its length

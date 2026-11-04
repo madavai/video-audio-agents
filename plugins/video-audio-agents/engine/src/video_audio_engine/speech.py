@@ -1,9 +1,11 @@
 """Speech in a saved voice, made on the computer by Chatterbox: speak (text or a transcript), speak_timed (dubbing:
-every line at its own time) and change_voice (the same words and timing in another voice).
+every line at its own time), change_voice (the same words and timing in another voice) and set_pronunciations (how a
+voice should say names and words it gets wrong).
 English, Hindi, French and Spanish are spoken directly in the voice. Kannada and Tamil are read by a free Microsoft
 reader voice (online) first, then changed into the saved voice."""
 import asyncio
 import gc
+import json
 import logging
 import re
 import subprocess
@@ -37,6 +39,7 @@ def speak(job, voice: str, language: str, speed: str = "little_slower", text: st
     """Reads text, or a transcript or any text file (its "[12.5s]" times are left out), aloud in the voice.
     Saved next to the file; text in `folder`, or else in Documents/VideoAudioAgents/Speech/."""
     check_language(language)
+    respell = pronouncer(voice)
     if transcript_file:
         source = existing(transcript_file)
         words, folder, name = plain_text(source.read_text(encoding="utf-8")), source.parent, source.stem
@@ -47,7 +50,7 @@ def speak(job, voice: str, language: str, speed: str = "little_slower", text: st
     if not words:
         raise ToolError("There are no words to read aloud. Give the text, or the path of a transcript.")
     with models.one_at_a_time(job), tempfile.TemporaryDirectory() as tmp:
-        lines, rate = spoken(job.report, text_pieces(words), language, voices.sample(voice, tmp),
+        lines, rate = spoken(job.report, text_pieces(respell(words)), language, voices.sample(voice, tmp),
                              f"Speaking in the {in_voice(voice)}")
     gap = np.zeros(int(PAUSE * rate), np.float32)
     audio = np.concatenate([piece for line in lines for piece in (line, gap)])
@@ -62,6 +65,7 @@ def speak_timed(job, segments_file: str, voice: str, language: str, speed: str =
     It stays in step because the translator words the lines to fit first (too_long) and garbled takes are cut or
     made again (said)."""
     check_language(language)
+    respell = pronouncer(voice)
     source = existing(segments_file)
     # Lines without a word (a translated "…" over music) stay silent.
     segments = read_json(source.read_text(encoding="utf-8"), segments=True)
@@ -70,7 +74,7 @@ def speak_timed(job, segments_file: str, voice: str, language: str, speed: str =
         raise ToolError(f"{source.name} has no lines to speak.")
     count, segments = len(segments), joined(segments)
     with models.one_at_a_time(job), tempfile.TemporaryDirectory() as tmp:
-        lines, rate = spoken(part(job.report, 0, 95), [plain_text(s["text"]) for s in segments], language,
+        lines, rate = spoken(part(job.report, 0, 95), [respell(plain_text(s["text"])) for s in segments], language,
                              voices.sample(voice, tmp), f"Dubbing in the {in_voice(voice)}")
     timing, overruns = place(segments, [len(line) / rate for line in lines], SPEEDS[speed])
     job.report(95, "Putting each line at its time")
@@ -96,6 +100,50 @@ def change_voice(job, file: str, voice: str, speed: str = "as_made") -> dict:
         audio = convert(vc, audio, 16000, tmp, job.report, f"Changing it into the {in_voice(voice)}")
     output = paths.free_path(source.parent, f"{source.stem} ({in_voice(voice)})", ".mp3")
     return {"output_file": str(output), "seconds": save_mp3(audio, vc.sr, output, SPEEDS[speed])}
+
+
+def set_pronunciations(voice: str, pairs: dict) -> dict:
+    """Adds or changes how a voice says words, e.g. {"Madav": "Maa-dhuv"}, in <voice>.pronunciations.json beside the
+    voice's sample; a word given an empty respelling is taken off the list. Written whole or not at all."""
+    if not pairs:
+        raise ToolError('Give at least one word and how it should sound, like "Madav": "Maa-dhuv".')
+    saved = pronunciations(voice)
+    for word, respelling in pairs.items():
+        if not word.strip():
+            raise ToolError('Each pronunciation needs the word as it is written, like "Madav": "Maa-dhuv".')
+        if respelling.strip():
+            saved[word.strip().lower()] = respelling.strip()
+        else:
+            saved.pop(word.strip().lower(), None)
+    file = pronunciation_file(voice)
+    part = file.with_name(file.name + ".part")
+    part.write_text(json.dumps(saved, ensure_ascii=False, indent=2), encoding="utf-8")
+    part.replace(file)
+    return {"count": len(saved)}
+
+
+def pronunciation_file(voice: str) -> Path:
+    sample = voices.voice_file(voice)  # an unknown voice is reported here
+    return sample.with_name(f"{sample.stem}.pronunciations.json")
+
+
+def pronunciations(voice: str) -> dict:
+    """The voice's list: the word in lower case, and how to write it so the voice says it right."""
+    file = pronunciation_file(voice)
+    return json.loads(file.read_text(encoding="utf-8")) if file.exists() else {}
+
+
+def pronouncer(voice: str):
+    """A function that respells the words on the voice's list in a text: whole words only ("Madav" in "Madav's"
+    but not in "Madavan"), in any case, the longest first. The text of the voice models only; names of files keep the
+    words as written."""
+    saved = pronunciations(voice)
+    if not saved:
+        return lambda text: text
+    letters = r"[\w\u0900-\u0dff\u200c\u200d]"  # \w doesn't count the vowel signs of the Indian scripts
+    words = "|".join(re.escape(word) for word in sorted(saved, key=len, reverse=True))
+    pattern = re.compile(f"(?<!{letters})(?:{words})(?!{letters})", re.IGNORECASE)
+    return lambda text: pattern.sub(lambda found: saved[found[0].lower()], text)
 
 
 def in_voice(voice: str) -> str:
@@ -296,15 +344,24 @@ def plain_text(text: str) -> str:
 
 
 def text_pieces(text: str, limit: int = 300) -> list:
-    """Sentence-sized pieces of at most about `limit` characters (the voice models speak one piece at a time)."""
+    """Sentence-sized pieces of at most about `limit` characters (the voice models speak one piece at a time), in the
+    order of the text. A short piece, such as a heading, goes along with the sentence after it, which can take that
+    piece up to a third over the limit: on its own it comes out with its last words lost (a heading before a
+    paragraph lost "for STEM Day"), as dubbing found for short lines."""
     pieces, current = [], ""
     for sentence in re.split(r"(?<=[.!?।])\s+", text.strip()):
-        while len(sentence) > limit:  # a very long sentence: split it at a space
-            cut = sentence.rfind(" ", 0, limit)
-            cut = cut if cut > 0 else limit
-            pieces.append(sentence[:cut].strip())
-            sentence = sentence[cut:].strip()
-        if current and len(current) + len(sentence) + 1 > limit:
+        if len(sentence) > limit:  # a very long sentence: split it at spaces, after what came before it
+            if len(current) < limit // 3:
+                sentence, current = f"{current} {sentence}".strip(), ""
+            elif current:
+                pieces.append(current)
+                current = ""
+            while len(sentence) > limit:
+                cut = sentence.rfind(" ", 0, limit)
+                cut = cut if cut > 0 else limit
+                pieces.append(sentence[:cut].strip())
+                sentence = sentence[cut:].strip()
+        if current and len(current) + len(sentence) + 1 > limit and len(current) >= limit // 3:
             pieces.append(current)
             current = sentence
         else:
