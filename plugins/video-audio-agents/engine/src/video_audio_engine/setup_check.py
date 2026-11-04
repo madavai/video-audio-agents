@@ -67,7 +67,7 @@ def check_setup() -> dict:
     if disk < 5:
         notes.append(f"Only {disk} GB of disk space is free; the models need up to 10 GB.")
     if shutil.which("nvidia-smi"):
-        notes.append("An NVIDIA graphics card was found; using it to go faster comes in version 1.1.")
+        notes.append("An NVIDIA graphics card was found; using it to go faster comes in a later version.")
     return {
         "ok": bool(ffmpeg and deno) and all(name in present for name in models.STANDARD),
         "python": platform.python_version(),

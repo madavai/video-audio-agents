@@ -2,6 +2,73 @@
 
 The version goes up with every change people should receive: a phase adds one to the middle number, a fix to the last. 1.0.0 is the release, after Phase 7.
 
+## 1.3.0
+
+Phase 10 (Narration & podcast), the third part of Wave 2.
+
+### New
+- **Narration.** "Narrate this blog post in my voice" reads a text file (or text you give) aloud in a saved voice, in
+  one piece when it takes under about 40 minutes to say and in parts when it is longer, saying first how long it will
+  take. For an audiobook, each chapter is its own file; the whole book in one file is one more reading of all the
+  text, so it takes as long as all the chapters again, and Claude asks first.
+- **Your own music, intro and outro.** `mix_music` puts your music under a narration, with your intro before it and
+  your outro after it (saved as `<narration> (with music).mp3`). Only files you give are used, never anything from
+  the internet. The music plays all through the narration (a short piece repeats), turns itself down by about 15 dB
+  while the voice speaks and comes back up in the pauses, and fades in and out. Every file is measured first, so the
+  levels follow the voice and not how loudly each file was made: the intro and outro play as loud as the voice, the
+  music at 0.4 of it in the pauses (8 dB under; say "quieter" or "louder"). Each try is a new file, so you can compare.
+- **Podcast files.** `export_podcast` makes `<name> (podcast).mp3`: -16 LUFS (measured first, then written, as in
+  `clean_audio`), 128 kbps, with the episode title, your own .jpg or .png as the cover picture, and chapter markers
+  that podcast apps show, written into the file (ID3 tags, with the `mutagen` package, pinned). The chapters come
+  from the transcriber's `<name> (chapters).md`: one line for each chapter, its time and its title. They must come
+  from a transcript of the same audio (after any music is added), so Claude has the transcriber make it first; a
+  chapter after the end of the audio, or two at the same moment, are refused. Nothing is uploaded or posted.
+- **Names said right.** `set_pronunciations` teaches a voice how to say a word, written with hyphens ("Madav" →
+  "Maa-dhuv"). The list is kept beside the voice (`<voice>.pronunciations.json`) and used by every reading and
+  dubbing in that voice: whole words only, any case, "Madav's" too, and a word that only contains it ("Madavan") is
+  left alone. Words already on the list are kept; a word with an empty respelling is taken off.
+- **The voice helper's description and instructions** now cover narration, audiobooks, music, names and podcast
+  files, and say that a podcast episode goes voice helper, transcriber, voice helper.
+- **The graphics-card note** in the setup check no longer promises a version ("comes in a later version").
+- **A project rule:** no Claude model name is written into the plugin; the four helpers stay on `model: inherit`.
+
+### Fixed
+- **Long sentences were read out of order.** When a sentence over 300 characters came after other sentences waiting
+  to be spoken, it was spoken first. Quotations make such sentences common in stories: chapter 1 of a two-fable
+  audiobook came out as "…the Lion laughed and let him go. The Mouse, recognizing his roar… to confer benefits on a
+  *[then]* It happened shortly after this that the Lion was caught…", and speech recognition heard 32% of its words
+  wrong. Reading aloud now keeps the order of the text (2.1% wrong).
+- **A heading lost its last words.** A heading standing alone before a paragraph ("NASA Astronaut, STEM Creator
+  Connect with Students for STEM Day.") was spoken without "for STEM Day". A short piece is now spoken together with
+  the sentence after it, like short lines in dubbing.
+
+### Tried for real
+- **A podcast episode from a news article.** NASA's "NASA Astronaut, STEM Creator Connect with Students for STEM Day"
+  (278 words, public domain) in the saved test voice Andrew, with an intro, a background piece and an outro that
+  were made with ffmpeg for the test (nothing downloaded) and a generated cover picture. One plain request, "narrate
+  this as a podcast episode called NASA STEM Day, with my music and cover and with chapters", ran the voice helper
+  (it taught the voice "ClassCrunchLabs" and "CrunchLabs" first, read the article, mixed the music), then the
+  transcriber (transcript of the finished audio, chapters), then the voice helper again (the podcast file): about 15
+  minutes, almost all of it the voice reading. The 2 minute 23 second file has the title, the cover picture and 8
+  chapters that ffmpeg's own reader lists in order, and measures -16.4 LUFS. Speech recognition on the narration
+  alone got 97.9% of the words (the rest are how it spells "Menon", "Rober" and "Nov."), and 98.3% on the finished
+  episode: the music does not cost a word, even when it is as loud as the voice in the pauses (music volume 1: still
+  98.3%).
+- **The music under the voice.** Measured on that narration (the music is what is left when the voice is taken out of
+  the mix): at the default 0.4 it plays 21 dB under the voice while it speaks, at 0.7 16 dB and at 1.0 13 dB. The
+  first try used 0.25, which was 32 dB under the voice, so faint that it would sound as if the music were missing,
+  and the default was raised. Mixing 143 seconds of sound took 6 seconds; a second mix with another volume was saved
+  as `(2)` and the first stayed.
+- **An audiobook.** "Two Fables" (two chapters from a public-domain Aesop translation): one file for each chapter
+  (49 seconds each) and the whole book (99 seconds, one more reading of all the text); speech recognition got 99.65%
+  of the whole book's words.
+- **Names.** The saved voice said "Madav" as "Madov" (heard as "Madov built this plugin"); after
+  `{"Madav": "Maa-dhuv"}` it was heard as "Madhuv built this plugin".
+- Found in these tries and fixed before release: the two reading problems above; the first default music level; and
+  the chapters of a podcast were listed out of order by ffmpeg's reader whenever a long title came before a short
+  one (the tag writer writes the smallest frames first; each chapter's name is now padded to one size). Stopping a
+  podcast export with Esc just as ffmpeg finishes would have left a file without its tags; it is now removed too.
+
 ## 1.2.0
 
 Phase 9 (Shorts & calendar), the second part of Wave 2.

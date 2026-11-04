@@ -10,6 +10,7 @@ Four Claude Code agents (transcriber, translator, voice, publisher), one setup s
 - Never print or log secrets, cookies or the browser profile. Never commit .venv, outputs, profiles.
 - Plain-English errors for users; tracebacks go to the log file only.
 - The agents never post to any platform and never fetch music or images from the internet.
+- Never write a Claude model name into the plugin: the four agent files stay on `model: inherit`, and the engine, the docs and the tests name no Claude model (the speech and voice models the engine downloads stay pinned, they are not Claude models).
 - Any change to a feature updates the agent file that uses it, the USER-GUIDE and the CHANGELOG in the same PR.
 - Tests: `uv run --project plugins/video-audio-agents/engine pytest` from the repo root before every PR; add `-m slow` for voice tests when models are present.
 - `claude plugin validate . --strict` and `claude plugin validate plugins/video-audio-agents --strict` pass before every PR.

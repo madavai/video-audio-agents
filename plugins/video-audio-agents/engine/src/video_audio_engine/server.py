@@ -17,7 +17,7 @@ from .paths import data_dir
 mcp = MCPServer(
     "engine",
     instructions="Downloads (also whole playlists), transcribes, searches transcripts, subtitles, cuts, crops for "
-    "Shorts, cleans up, voices and dubs video and audio. "
+    "Shorts, cleans up, voices, dubs and narrates video and audio, adds music and makes podcast files. "
     "Every tool returns a small JSON object; files are never overwritten.",
 )
 
@@ -173,6 +173,33 @@ async def clean_audio(file: str, ctx: Context, loudness: bool = True, trim_silen
 
 
 @mcp.tool()
+async def mix_music(voice_file: str, music_file: str, ctx: Context, music_volume: float = 0.4,
+                    intro_file: str | None = None, outro_file: str | None = None) -> str:
+    """Puts the person's own music under a narration, with their own intro before it and outro after it: all
+    files are theirs, never fetched from the internet. The music plays through the voice's whole length (a short piece
+    is repeated) and turns itself down while the voice speaks, so every word stays clear, then comes back up in the
+    pauses; it fades in at the start and out at the end. music_volume is how loud it plays in the pauses, as a share
+    of the voice's loudness: 1 = as loud as the voice, 0.4 (default) = about 8 dB quieter, 0.2 = quiet, 0.1 = barely there.
+    Intro and outro play as loud as the voice. Saved as "<voice name> (with music).mp3" next to voice_file, in stereo.
+    Takes about 1 minute for 15 minutes of sound. Returns {output_file, seconds}."""
+    return json.dumps(await progress.run(ctx, audio.mix_music, voice_file, music_file, music_volume, intro_file,
+                                         outro_file))
+
+
+@mcp.tool()
+async def export_podcast(audio_file: str, chapters: str, title: str, ctx: Context, artwork: str | None = None) -> str:
+    """Makes an episode ready for podcast apps: an mp3 at -16 LUFS (128 kbps) with the title, the chapters and, if
+    given, a cover picture written into the file. chapters is the path of a chapters file: one line per chapter,
+    the time it starts (minutes:seconds or hours:minutes:seconds) and then its title, like "00:00 Welcome" and
+    "02:30 The first topic" (the transcriber's "<title> (chapters).md" is in this form; lines without a time, such
+    as a heading, are ignored). The times are positions in audio_file, so use chapters made from a transcript of
+    this same file, after any music is added. artwork: the person's own .jpg or .png (podcast apps like a square
+    one, at least 1400 pixels). Saved as "<name> (podcast).mp3" next to audio_file. About a minute for every
+    15 minutes of sound. Returns {output_file, seconds, chapters}."""
+    return json.dumps(await progress.run(ctx, audio.export_podcast, audio_file, chapters, title, artwork))
+
+
+@mcp.tool()
 def list_voices() -> str:
     """The saved voices (names to pass as `voice`) and the folder they are in. Returns {voices, folder}."""
     try:
@@ -231,6 +258,18 @@ async def change_voice(file: str, voice: str, ctx: Context, speed: Speed = "as_m
     """Changes the voice in an audio or video file into a saved voice: the same words and timing, silence stays
     silence. Saved as "<name> (<voice> voice).mp3" next to the file. Returns {output_file, seconds}."""
     return json.dumps(await progress.run(ctx, speech.change_voice, file, voice, speed))
+
+
+@mcp.tool()
+def set_pronunciations(voice: str, pairs: dict[str, str]) -> str:
+    """Teaches a saved voice how to say names and words it gets wrong: pairs maps each word as written to how it
+    should be written so the voice says it right, for example {"Madav": "Maa-dhuv"}. Saved with the voice; speak and
+    speak_timed then use it whenever that whole word appears (in any case, also in "Madav's"). Words already on the
+    list are kept, and a pair with an empty respelling takes that word off. Returns {count}, the words on the list."""
+    try:
+        return json.dumps(speech.set_pronunciations(voice, pairs))
+    except Exception as e:
+        raise progress.plain_error(e) from e
 
 
 def setup_logging() -> None:

@@ -5,7 +5,7 @@ Paste this into Claude Code or Madav chat:
 > Install https://github.com/madavai/video-audio-agents and set it up.
 
 Then paste a link and get the video, the audio, a transcript, subtitles, notes, clips, a translation, a dubbed
-version in a saved voice, and drafts of posts to share it. Four helpers for Claude Code, the Claude desktop app and
+version in a saved voice, a narration or podcast file, and drafts of posts to share it. Four helpers for Claude Code, the Claude desktop app and
 Madav, running on your own computer: free beyond your Claude or Madav subscription.
 
 ## Install
@@ -56,11 +56,13 @@ When someone asks you to install this repository, do not clone it. Run:
 >
 > A bilingual English and Hindi version. · A simpler Hindi version for learners.
 
-**Voices and dubbing** (the voice helper)
+**Voices, narration and dubbing** (the voice helper)
 
 > Save my voice from this recording. · Read the summary aloud in my voice.
 >
 > Dub this video into Hindi in my voice.
+>
+> Narrate this blog post in my voice, with my intro music, as a podcast episode with chapters.
 
 **Titles and posts** (the publisher)
 
@@ -87,13 +89,14 @@ Say "update video audio agents". Or turn on auto-update: `/plugin` → Marketpla
 - You are responsible for following the terms of the sites you download from. The voice helper only saves a voice
   that is yours or that you have permission to use.
 - The helpers never post anything anywhere: posts are drafts for you to review.
-- Still to come: speaker labels, narration with music, podcast files, graphics-card speed-up and Mac.
+- Still to come: speaker labels, graphics-card speed-up and Mac.
 
 ## Status
 
-Version 1.2: Wave 1 of the [build plan](docs/BUILD-PLAN.md) is complete, and Wave 2 has begun with whole
+Version 1.3: Wave 1 of the [build plan](docs/BUILD-PLAN.md) is complete, and Wave 2 has begun with whole
 playlists and channels, search across transcripts and audio clean-up, then Shorts from a video's best moments, a
-week's content calendar, quote cards, and bilingual and simpler translations. See the [changelog](CHANGELOG.md) for
+week's content calendar, quote cards, bilingual and simpler translations, and narration with your own music and
+podcast-ready files with chapters. See the [changelog](CHANGELOG.md) for
 what changed, and [ADR 0001](docs/adr/0001-python-engine-as-plugin.md) for why it is built this way.
 
 ## Licence

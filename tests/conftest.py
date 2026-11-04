@@ -1,6 +1,7 @@
 import functools
 import http.server
 import os
+import re
 import shutil
 import subprocess
 import threading
@@ -36,6 +37,16 @@ def ffmpeg():
         else:
             os.environ["VAA_DATA"] = old
     return str(folder / ("ffmpeg.exe" if os.name == "nt" else "ffmpeg"))
+
+
+@pytest.fixture
+def meter(ffmpeg):
+    """A function that gives a file's integrated loudness in LUFS, measured by ffmpeg's EBU R128 meter."""
+    def measure(file):
+        said = subprocess.run([ffmpeg, "-hide_banner", "-nostats", "-i", str(file), "-af", "ebur128", "-f", "null", "-"],
+                              capture_output=True, text=True).stderr
+        return float(re.findall(r"I:\s+(-?[\d.]+) LUFS", said)[-1])
+    return measure
 
 
 @pytest.fixture
@@ -80,6 +91,14 @@ def media(ffmpeg, tmp_path_factory):
     make("-f", "lavfi", "-i", "anoisesrc=color=pink:duration=3:amplitude=0.001:seed=2", "-i", speech, "-f", "lavfi",
          "-i", "anoisesrc=color=pink:duration=4:amplitude=0.001:seed=3", "-filter_complex",
          "[0]aresample=16000[a];[1]volume=-12dB[s];[2]aresample=16000[b];[a][s][b]concat=n=3:v=0:a=1", "quiet.mp3")
+    # A narration and its music as tones, so each can be found again in a mix: a voice (400 Hz, 2 s on and 3 s off, three
+    # times: 15 s), a short piece of music (500 Hz, repeated to fill the 15 s; the loud one 20 dB hotter), an intro
+    # (600 Hz) and an outro (800 Hz), 2 s each.
+    make("-f", "lavfi", "-i", "aevalsrc='0.1*sin(2*PI*400*t)*lt(mod(t,5),2)':d=15:s=44100", "bursts.wav")
+    make("-f", "lavfi", "-i", "sine=frequency=500:duration=6,volume=0.2", "bed.mp3")
+    make("-f", "lavfi", "-i", "sine=frequency=500:duration=6,volume=2", "bed_loud.mp3")
+    make("-f", "lavfi", "-i", "sine=frequency=600:duration=2,volume=2", "intro.mp3")
+    make("-f", "lavfi", "-i", "sine=frequency=800:duration=2,volume=2", "outro.mp3")
     # A lesson page whose video is added by a script, so only a real browser finds it.
     (folder / "lesson.html").write_text(
         "<html><head><title>Lesson one</title></head><body><video id=v controls></video><script>"
