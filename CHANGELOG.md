@@ -2,6 +2,78 @@
 
 The version goes up with every change people should receive: a phase adds one to the middle number, a fix to the last. 1.0.0 is the release, after Phase 7.
 
+## 1.4.0
+
+Phase 11 (Speakers & graphics card), the fourth part of Wave 2.
+
+### New
+- **Who said what.** "Who said what in this interview?" transcribes the recording as usual, then `label_speakers`
+  finds who speaks when and saves a second transcript, `<name> (speakers).txt`, with the speaker on every line
+  (`[12.5s] Speaker 2: ...`), and `<name> (speakers).segments.json` (each line with its `speaker`). Speakers are
+  named Speaker 1, Speaker 2 and so on, in the order they first speak; a line where two people talk goes to the one
+  who talks most of it; saying how many people speak helps. Claude says who each speaker probably is when the
+  recording makes it clear (a name said or greeted). Notes of an interview, panel, podcast or meeting are written
+  from this transcript, so they say who said what. Subtitles stay without names. It uses pyannote's speaker
+  diarization 3.1 (the `pyannote.audio` package, 3.4.0, pinned) and runs on the processor.
+- **Speaker labels are an option: "set up speaker labels".** The default setup is unchanged. The option installs
+  pyannote (about 1 GB) and its three models (33 MB, pinned to exact versions and sizes, downloaded with progress
+  and resume like every model). Two of the models are gated: the person makes a free Hugging Face account, accepts
+  the terms on the two model pages and makes a "Read" key, all themselves (the setup lists the steps and the pages).
+  The key is pasted into a small window that the setup opens, not into the chat, because the conversation keeps what
+  is typed there. It is kept only in the plugin's private data folder and sent only to Hugging Face, only to download
+  those two models; the server Hugging Face redirects the download to never gets it. If Hugging Face refuses, the
+  message names what to do: accept the terms on the two pages it lists, or enter the key again (a key it doesn't
+  know is forgotten, so the setup asks for it again).
+- **Transcripts on an NVIDIA graphics card: "set up the graphics card".** The setup check names the card and
+  suggests the option; it downloads NVIDIA's maths library (about 0.6 GB, 0.9 GB on disk), and from the next start
+  transcripts run on the card, 13 to 24 times faster on the PC it was built on (see below), with the same words. If
+  the card fails at some point, the same transcript is made on the processor and Claude says so in one line.
+- **The setup check** reports the card's name (`gpu`), whether transcripts can use it (`gpu_usable`) and whether
+  speaker labels are set up (`speaker_labels`), instead of "using it to go faster comes in a later version".
+- **Setup options are remembered.** Running the setup again (after an update) keeps the graphics-card and speaker
+  label options instead of removing them.
+- **The transcriber's description and instructions** cover who said what, notes of conversations, and the
+  graphics card.
+- Engine tool `label_speakers(file, segments_file, people?)` in the new `speakers.py`; `gpu.py` (the card from
+  `nvidia-smi`, NVIDIA's libraries found, the fallback); `transcribe` runs `float16` on the card. `models.SPEAKERS`
+  (`pyannote/speaker-diarization-3.1` settings, `pyannote/segmentation-3.0`,
+  `pyannote/wespeaker-voxceleb-resnet34-LM`),
+  `models.GATED` and the key sent as an unredirected header. pyannote's checkpoints are opened with PyTorch's
+  "weights only" check on, naming the four plain types they hold; the pipeline's 10-second windows move on every
+  5 seconds instead of every second (`speakers.STEP`), which was 5.5 times faster and as right (see below). Setup: `install.py gpu` and `install.py speakers`
+  (optional extras `gpu` = `nvidia-cublas-cu12==12.9.2.10` and `speakers` = `pyannote.audio==3.4.0`;
+  `setup-options.json`), `video-audio-engine --warm speakers`.
+
+### Not changed: voice stays on the processor
+- Voice work (speaking, dubbing, changing a voice), the music keeper and speaker labels don't use the graphics card.
+  They run on PyTorch, and the voice models (chatterbox-tts 0.1.7, the latest) require PyTorch 2.6.0 exactly.
+  PyTorch 2.6 has no code for the newest cards: on this PC's RTX 5090 Laptop GPU (RTX 50 series) even a simple
+  calculation fails ("no kernel image is available"); those cards need PyTorch 2.7 or later. Moving to it would
+  break the voice models' pin, so the graphics-card option leaves PyTorch as it is.
+
+### Fixed
+- The 1.2.0 entry said the Shorts package on "Spectroscopy, Explained" took about 6 minutes; it took about 3½.
+
+### Tried for real
+- **Graphics card, checklist 16.** NASA Goddard's "Spectroscopy, Explained" (7 minutes 52 seconds) on an NVIDIA
+  GeForce RTX 5090 Laptop GPU against the same PC's processor (the engine's 4 threads): "balanced" 4.5 seconds on
+  the card against 57.9 on the processor (12.9 times faster), "accurate" 5.7 against 134.9 (23.7 times). With
+  loading the model, 9.9 and 15.5 times. The two transcripts differ by one word in 1,075 (balanced) and none
+  (accurate). A 54-minute NASA podcast episode took 34 seconds on the card.
+- **Speaker labels, checklist 15.** Two episodes of NASA's "Houston We Have a Podcast" (public domain), each
+  checked line by line against NASA's own transcript, which names who says every part. "ISS Results: Stem Cells in
+  Space" (53 minutes 46 seconds, a host and a scientist): all 544 lines that match NASA's text have the right
+  speaker. "ISS Results: Materials Science" (48 minutes 49 seconds, a host and two guests, found as three speakers
+  without being told how many): 392 of 395 lines right, 99.7% of the talking time; the three misses are short
+  thank-yous at the start and the end. About 5 minutes for each episode on the processor (24 threads), so about a
+  minute for 10 minutes of sound. With pyannote's own setting (its 10-second windows moving on every second) the same
+  episodes took 31 and 23 minutes, 95% of it in the voice model, with 542 and 392 lines right: moving every 5 seconds
+  is what the engine now does. Through Claude with the plugin, "Who said what in this podcast?" on the Materials
+  Science episode went to the transcriber, which checked the setup, transcribed on the card and labelled the
+  speakers (8 minutes in all); the answer named the three people from what they say on the recording, with their
+  talk times, and said the files keep Speaker 1, 2, 3. It also said 5 minutes "weren't assigned to anyone": those
+  are pauses and music, so the transcriber's instructions now say every line has a speaker.
+
 ## 1.3.0
 
 Phase 10 (Narration & podcast), the third part of Wave 2.
@@ -109,7 +181,7 @@ Phase 9 (Shorts & calendar), the second part of Wave 2.
 ### Tried for real
 - NASA Goddard's "Spectroscopy, Explained" (7:52, one presenter at a desk): "Make a Shorts package from this video"
   had the transcriber pick 3 moments (42, 57 and 37 seconds) and make them upright with captions, then the publisher
-  write their titles (33 to 36 characters) and captions, about 6 minutes in all. The presenter stays in the picture,
+  write their titles (33 to 36 characters) and captions, about 3½ minutes in all. The presenter stays in the picture,
   every caption is whole, and speech recognition on the Shorts hears each moment's first and last sentence in full.
   A 42-second Short took 9 seconds to make on 24 processor cores and 35 seconds on 4.
 - From the same video: a 7-day calendar (LinkedIn, X and Instagram in turn), 5 quote cards (all the speaker's exact

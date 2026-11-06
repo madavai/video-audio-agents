@@ -10,13 +10,14 @@ from typing import Literal
 
 from mcp.server.mcpserver import Context, MCPServer
 
-from . import audio, clips, media, models, progress, setup_check, speech, subtitles, texts, voices
+from . import audio, clips, media, models, progress, setup_check, speakers, speech, subtitles, texts, voices
 from . import transcribe as speech_to_text
 from .paths import data_dir
 
 mcp = MCPServer(
     "engine",
-    instructions="Downloads (also whole playlists), transcribes, searches transcripts, subtitles, cuts, crops for "
+    instructions="Downloads (also whole playlists), transcribes, labels who said what, searches transcripts, "
+    "subtitles, cuts, crops for "
     "Shorts, cleans up, voices, dubs and narrates video and audio, adds music and makes podcast files. "
     "Every tool returns a small JSON object; files are never overwritten.",
 )
@@ -25,8 +26,9 @@ mcp = MCPServer(
 @mcp.tool()
 def check_setup() -> str:
     """What is installed and what is missing: Python, ffmpeg, Deno, a browser for login pages, which models are
-    downloaded and how many GB each missing one needs, free memory and disk. Fast; downloads nothing.
-    Call it once before heavy work."""
+    downloaded and how many GB each missing one needs, free memory and disk, the NVIDIA graphics card (gpu: its
+    name or null; gpu_usable: transcripts run on it) and whether speaker labels are set up (speaker_labels). Fast;
+    downloads nothing. Call it once before heavy work."""
     return json.dumps(setup_check.check_setup())
 
 
@@ -56,10 +58,24 @@ async def transcribe(file: str, ctx: Context, accuracy: Literal["fast", "balance
     """Speech to text for an audio or video file. Writes <name>.txt next to it (one "[12.5s] text" line per
     segment with timestamps, otherwise paragraphs) and <name>.segments.json (start, end, text), which subtitles,
     clips and dubbing are made from. accuracy: fast, balanced (default) or accurate (slower; downloads 1.5 GB
-    the first time). delete_audio_after removes the audio file afterwards (never a video).
-    Returns {transcript_file, segments_file, language, lines, duration_seconds}."""
+    the first time). delete_audio_after removes the audio file afterwards (never a video). Runs on the NVIDIA
+    graphics card when check_setup says gpu_usable; if the card fails it runs on the processor and adds a note.
+    Returns {transcript_file, segments_file, language, lines, duration_seconds} (and note, to pass on, if any)."""
     return json.dumps(await progress.run(ctx, speech_to_text.transcribe, file, accuracy, timestamps,
                                          delete_audio_after))
+
+
+@mcp.tool()
+async def label_speakers(file: str, segments_file: str, ctx: Context, people: int | None = None) -> str:
+    """Who said what: finds who speaks when in an audio or video file and gives each line of its transcript a
+    speaker, named Speaker 1, Speaker 2... in the order they first speak (a line where two people speak gets the one
+    who talks most of it). file is the recording that was transcribed, segments_file its .segments.json from
+    transcribe. people: how many people speak, only if the person said (it helps). Saves "<name> (speakers).txt"
+    ("[12.5s] Speaker 1: text" lines) and "<name> (speakers).segments.json" (each line with its speaker) next to
+    the transcript. Needs the setup's speaker labels option (check_setup: speaker_labels). Runs on the processor:
+    about a minute for 10 minutes of sound. Returns {transcript_file, segments_file, lines, speakers} (speakers: the
+    seconds each one speaks)."""
+    return json.dumps(await progress.run(ctx, speakers.label_speakers, file, segments_file, people))
 
 
 @mcp.tool()
@@ -297,21 +313,24 @@ def warm(mode: str) -> None:
     """Downloads ffmpeg and the models for the setup mode. Skips whatever is already there, so it is safe to re-run."""
     print("ffmpeg (the video tool): " + ("already here" if models.ffmpeg_present() else "downloading"), flush=True)
     models.ensure_ffmpeg(printer("ffmpeg"))
-    names = models.STANDARD if mode == "standard" else models.FULL
+    names = {"standard": models.STANDARD, "full": models.FULL, "speakers": models.SPEAKERS}[mode]
+    groups = {}  # one line per label: speaker labels are three files
     for name in names:
-        label = models.MODELS[name]["label"]
-        if models.is_present(name):
+        groups.setdefault(models.MODELS[name]["label"], []).append(name)
+    for label, group in groups.items():
+        if all(models.is_present(name) for name in group):
             print(f"{label}: already here", flush=True)
             continue
-        print(f"{label}: downloading {models.missing_gb([name])} GB", flush=True)
-        models.ensure([name], printer(label))
+        size = models.missing_gb(group)
+        print(f"{label}: downloading " + (f"{size} GB" if size >= 0.1 else "(under 0.1 GB)"), flush=True)
+        models.ensure(group, printer(label))
     print(f"Done. Models are in {models.models_dir()}", flush=True)
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(prog="video-audio-engine", description="The Video Audio Agents engine.")
-    parser.add_argument("--warm", choices=["standard", "full"],
-                        help="download ffmpeg and the models for this setup mode, then exit")
+    parser.add_argument("--warm", choices=["standard", "full", "speakers"],
+                        help="download ffmpeg and the models for this setup mode (or option), then exit")
     parser.add_argument("--check", action="store_true", help="print what is installed and missing, then exit")
     parser.add_argument("--data", help="the plugin's private data folder (the setup skill passes it)")
     args = parser.parse_args()

@@ -226,8 +226,9 @@ def test_tempo_changes_the_length_not_the_pitch(with_models):
 
 def test_transcribing_lets_a_voice_model_go_first(with_models, monkeypatch):
     monkeypatch.setattr(models, "loaded", {"multilingual": "a voice model of several GB"})
+    monkeypatch.setattr(transcribe.gpu, "usable", lambda: False)  # this PC may have a card; CI hasn't
     transcribe.load("base", progress.Job())
-    assert list(models.loaded) == ["base"]
+    assert list(models.loaded) == [("base", "cpu")]
 
 
 def test_a_second_voice_or_transcript_job_waits_for_the_first(with_models):

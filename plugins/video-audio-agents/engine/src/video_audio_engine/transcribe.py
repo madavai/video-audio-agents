@@ -7,25 +7,42 @@ from pathlib import Path
 import av
 from mcp.server.mcpserver.exceptions import ToolError
 
-from . import models, paths
+from . import gpu, models, paths
 
 ACCURACY = {"fast": "base", "balanced": "small", "accurate": "large-v3-turbo"}
 AUDIO = {".mp3", ".m4a", ".wav", ".webm", ".ogg", ".opus", ".flac", ".aac"}  # delete_audio_after never deletes a video
 
 
 def load(name: str, job):
-    """The speech model, downloaded first if needed. Batched and with silence skipped: much faster on a CPU."""
-    if name not in models.loaded:
+    """The speech model, downloaded first if needed, on the graphics card when it can be used. Batched and with
+    silence skipped: much faster on a CPU."""
+    device = "cuda" if gpu.usable() else "cpu"
+    if (name, device) not in models.loaded:
         models.ensure([name], job.report)
-        job.report(0, "Loading the speech-to-text model")
+        job.report(0, "Loading the speech-to-text model" + (" on the graphics card" if device == "cuda" else ""))
         from faster_whisper import BatchedInferencePipeline, WhisperModel
         models.loaded.clear()  # a voice model takes several GB: let it go first
         gc.collect()
-        # 4 threads: more crashed outright (Windows stack overflow) with full batches of 8 on long recordings,
-        # e.g. 12 threads on a 24-core PC; 4 was as fast in measurements.
-        model = WhisperModel(str(models.folder(name)), device="cpu", compute_type="int8", cpu_threads=4)
-        models.loaded[name] = BatchedInferencePipeline(model)
-    return models.loaded[name]
+        if device == "cuda":
+            model = WhisperModel(str(models.folder(name)), device="cuda", compute_type="float16")
+        else:
+            # 4 threads: more crashed outright (Windows stack overflow) with full batches of 8 on long recordings,
+            # e.g. 12 threads on a 24-core PC; 4 was as fast in measurements.
+            model = WhisperModel(str(models.folder(name)), device="cpu", compute_type="int8", cpu_threads=4)
+        models.loaded[(name, device)] = BatchedInferencePipeline(model)
+    return models.loaded[(name, device)], device
+
+
+def listen(job, source: Path, accuracy: str):
+    """The lines and the recording's details, on the graphics card if it can be used, else on the processor."""
+    pipeline, device = load(ACCURACY[accuracy], job)
+    job.report(0, "Listening" + (" (graphics card)" if device == "cuda" else ""))
+    try:
+        # Word timings instead of segment timings: the batched segment timings drop words at chunk ends.
+        segments, info = pipeline.transcribe(str(source), batch_size=8, word_timestamps=True)
+        return to_lines(segments, info.duration, job), info
+    except av.error.FFmpegError as e:
+        raise ToolError(f"{source.name} couldn't be read as audio or video.") from e
 
 
 def transcribe(job, file: str, accuracy: str = "balanced", timestamps: bool = True,
@@ -33,15 +50,20 @@ def transcribe(job, file: str, accuracy: str = "balanced", timestamps: bool = Tr
     source = Path(file)
     if not source.is_file():
         raise ToolError(f"There is no file at {source}.")
+    note = None
     with models.one_at_a_time(job):
-        pipeline = load(ACCURACY[accuracy], job)
-        job.report(0, "Listening")
+        on_card = gpu.usable()
         try:
-            # Word timings instead of segment timings: the batched segment timings drop words at chunk ends.
-            segments, info = pipeline.transcribe(str(source), batch_size=8, word_timestamps=True)
-            lines = to_lines(segments, info.duration, job)
-        except av.error.FFmpegError as e:
-            raise ToolError(f"{source.name} couldn't be read as audio or video.") from e
+            lines, info = listen(job, source, accuracy)
+        except ToolError:
+            raise
+        except Exception as e:  # the card failed (missing library, out of memory...): once more on the processor
+            if not on_card:
+                raise
+            note = gpu.give_up(e)
+            models.loaded.clear()
+            gc.collect()
+            lines, info = listen(job, source, accuracy)
 
     # Written only now, all at once, so a stopped transcript leaves no half-written files.
     name = paths.free_name(source.parent, source.stem, [".txt", ".segments.json"])
@@ -51,8 +73,9 @@ def transcribe(job, file: str, accuracy: str = "balanced", timestamps: bool = Tr
     if delete_audio_after and source.suffix.lower() in AUDIO:
         source.unlink()
     job.report(100, "Transcript ready")
-    return {"transcript_file": str(transcript), "segments_file": str(segments_file), "language": info.language,
-            "lines": len(lines), "duration_seconds": round(info.duration, 1)}
+    result = {"transcript_file": str(transcript), "segments_file": str(segments_file), "language": info.language,
+              "lines": len(lines), "duration_seconds": round(info.duration, 1)}
+    return result | {"note": note} if note else result
 
 
 def to_lines(segments, duration: float, job) -> list:

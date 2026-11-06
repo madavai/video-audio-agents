@@ -25,6 +25,14 @@ dependencies = [
     "mutagen==1.48.1",  # tags and chapter markers in the podcast mp3
 ]
 
+[project.optional-dependencies]
+# Setup options, installed only when the person asks (install.py speakers / gpu); the standard setup stays as it is.
+# pyannote.audio 4 needs PyTorch 2.8, and the voice models pin 2.6, so speaker labels stay on the 3.x line.
+speakers = ["pyannote.audio==3.4.0"]
+# NVIDIA's maths library, all faster-whisper needs to run transcripts on an NVIDIA graphics card (it brings its own
+# CUDA runtime). PyTorch stays the processor build: PyTorch 2.6 has no code for the newest cards (RTX 50).
+gpu = ["nvidia-cublas-cu12==12.9.2.10; sys_platform == 'win32' or sys_platform == 'linux'"]
+
 [project.scripts]
 video-audio-engine = "video_audio_engine.server:main"
 
