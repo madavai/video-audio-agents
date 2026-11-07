@@ -82,7 +82,8 @@ def ask_key(data):
 
     tk.Button(root, text="Save", width=12, command=save).pack(pady=12)
     root.bind("<Return>", save)
-    entry.focus_force()
+    # Once the window is shown: a Mac only gives the keyboard to a window started from a command when asked to.
+    root.after(300, lambda: (root.lift(), entry.focus_force()))
     root.mainloop()
     if "key" not in got:
         return False

@@ -3,6 +3,7 @@ with their permission (uploaded or recorded). The voice models listen to 10 seco
 10 seconds of the saved voice."""
 import logging
 import subprocess
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -15,6 +16,9 @@ from .texts import existing
 log = logging.getLogger("engine.voices")
 RATE = 24000  # the voice models' own sample rate
 LONGEST, SHORTEST = 30, 10  # seconds of speech kept, and needed
+# Where the person allows the microphone: on a Mac, for the app Claude runs in (Terminal or the Claude app).
+MICROPHONE = ("System Settings, Privacy & Security, Microphone" if sys.platform == "darwin"
+              else "Windows Settings, Privacy, Microphone")
 CONSENT = ("A voice is only saved when it is the person's own, or they agreed to it being used. "
            "Ask them first, then try again with consent.")
 
@@ -63,7 +67,7 @@ def record_voice(job, name: str, seconds: int, consent: bool) -> dict:
                     waited += step
                     if waited > 60 * RATE:
                         raise ToolError("Nothing was heard for a minute. Check the microphone is switched on and "
-                                        "allowed (Windows Settings, Privacy, Microphone), then try again.")
+                                        f"allowed ({MICROPHONE}), then try again.")
                     job.report(0, "Listening: start speaking whenever you are ready")
                     continue
                 chunks.append(chunk)
@@ -81,7 +85,7 @@ def keep(audio: np.ndarray, name: str) -> dict:
     import soundfile
     if audio.size == 0 or np.abs(audio).max() < 0.01:
         raise ToolError("There is no sound in that recording. If it was recorded here, check the microphone is "
-                        "switched on and allowed (Windows Settings, Privacy, Microphone).")
+                        f"switched on and allowed ({MICROPHONE}).")
     audio = librosa.effects.trim(audio, top_db=35)[0]
     if len(audio) < SHORTEST * RATE:
         raise ToolError(f"That is only {len(audio) / RATE:.0f} seconds of speaking; a voice needs at least "

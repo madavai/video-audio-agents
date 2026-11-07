@@ -84,8 +84,8 @@ Say "update video audio agents". Or turn on auto-update: `/plugin` → Marketpla
 
 ## Limits
 
-- Runs on your computer (Windows first; Mac is checked in a later version). Not available in claude.ai in a
-  browser or on phones.
+- Runs on your computer: Windows, and Apple Silicon Macs with macOS 14 or later (Intel Macs aren't supported). Not
+  available in claude.ai in a browser or on phones.
 - Voice work needs about 6 GB of free memory and is slow on an ordinary computer (5 to 8 seconds of work per second
   of speech). English, Hindi, French and Spanish are spoken directly in the saved voice; Kannada and Tamil are read
   by an online reader voice first, so they match it less closely.

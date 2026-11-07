@@ -10,7 +10,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, ubuntu-latest]
+        os: [windows-latest, ubuntu-latest, macos-latest]  # macos-latest is an Apple Silicon Mac
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7

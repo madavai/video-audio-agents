@@ -48,7 +48,7 @@ Tell the person which mode and its size before starting. Re-running setup is alw
    - "Setup complete", the mode, and roughly how much was downloaded;
    - where their files will be saved (`output_folder` from the check);
    - anything in `notes` (for example, no Edge or Chrome found);
-   - next: "Restart Claude Code (close it and open it again) so the engine starts. Then type /mcp: `engine` should show as connected." (Until this restart, the engine is a stand-in that only says to run the setup.) If uv was newly installed in step 1, also say: "If `engine` shows as failed, choose it in /mcp and pick Reconnect." (The engine couldn't start before uv was there, and Claude Code waits up to 15 minutes before trying a failed server again.)
+   - next: "Restart Claude Code (close it and open it again) so the engine starts. Then type /mcp: `engine` should show as connected." (Until this restart, the engine is a stand-in that only says to run the setup.) If uv was newly installed in step 1, also say: "If `engine` shows as failed, choose it in /mcp and pick Reconnect." (The engine couldn't start before uv was there, and Claude Code waits up to 15 minutes before trying a failed server again.) On a Mac, when uv was newly installed, also say to close the Terminal window Claude Code runs in (or quit the Claude app with Cmd+Q) and open a new one, because a window opened before uv was installed can't find it.
    - something to try: "Paste a YouTube link and ask for the video and a transcript."
 
 ## Login browser (only on request)
@@ -81,7 +81,7 @@ them. Run the standard setup first.
    Say: "Don't paste the key here in the chat: a small window will open for it."
 2. Run:
    `uv run --no-project --python 3.11 "${CLAUDE_PLUGIN_ROOT}/skills/setup/install.py" speakers "${CLAUDE_PLUGIN_DATA}"`
-   Say a small window has opened: paste the key there and click Save. The key is kept only in the plugin's private
+   Say a small window has opened (on a Mac, click into it first): paste the key there and click Save. The key is kept only in the plugin's private
    folder on this computer and is sent only to Hugging Face, only to download these two models. Then the packages
    install (several minutes) and the models download.
 3. If it stops because Hugging Face refused, say what its message says to do (accept the terms on the pages it

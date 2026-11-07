@@ -29,6 +29,14 @@ Then say "set up video audio agents".
 **Developers:** `git clone https://github.com/madavai/video-audio-agents`, then from that folder
 `claude --plugin-dir plugins/video-audio-agents`, and say "set up video audio agents" once.
 
+**On a Mac:** it needs an Apple Silicon Mac (M1 or later) with macOS 14 Sonoma or later; older Intel Macs can't run
+the voice models' maths library. The first time, the Mac asks whether Terminal (or the Claude app) may use your
+Documents folder, and later the microphone if you record your voice: click **Allow**. If the setup had to install
+uv (the small program that runs the engine), close the Terminal window and open a new one (or quit the Claude app
+with Cmd+Q and open it again) before restarting Claude Code. If your Documents folder is kept in iCloud Drive, the
+videos you download are uploaded to iCloud too; name another folder if you'd rather they stay on the Mac. The Mac
+is checked by tests on GitHub; [MAC-TEST.md](MAC-TEST.md) is the list for trying it on a real Mac.
+
 ### What the setup downloads
 
 The setup tells you the sizes before it starts, shows progress, and can be run again at any time: it skips what is
@@ -451,8 +459,8 @@ If you set up speaker labels, you can also delete the key on https://huggingface
 
 ## Limits
 
-- Runs on your computer: Windows first. Mac is checked in a later version. Not available in claude.ai in a browser
-  or on phones.
+- Runs on your computer: Windows, and Apple Silicon Macs with macOS 14 or later (checked by tests; a first try on
+  a real Mac is still to come). Not available in claude.ai in a browser or on phones.
 - Only transcripts use the graphics card, and only an NVIDIA one; voice work and speaker labels run on the processor.
 - Copy-protected services (Netflix and similar) are not supported.
 - You are responsible for following the terms of the sites you download from.
@@ -502,4 +510,8 @@ If you set up speaker labels, you can also delete the key on https://huggingface
   with a very loud soundtrack, a faint trace may remain. Ask Claude to "put the dub under the video without the
   original sound" to replace the whole sound instead.
 - **"The microphone couldn't be used" or "Nothing was heard":** check the microphone is plugged in and allowed in
-  Windows Settings → Privacy & security → Microphone.
+  Windows Settings → Privacy & security → Microphone. On a Mac: System Settings → Privacy & Security → Microphone,
+  switched on for Terminal (or Claude).
+- **"The computer didn't allow a file to be opened or saved":** on a Mac, System Settings → Privacy & Security →
+  Files and Folders, and allow Terminal (or Claude) to use the Documents folder. On Windows, close any program that
+  has the file open.
