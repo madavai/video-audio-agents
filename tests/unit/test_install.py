@@ -29,34 +29,87 @@ def test_the_engine_is_found_from_the_script():
     assert (install.ENGINE / "pyproject.toml").is_file()
 
 
-@pytest.mark.parametrize("step", ["packages", "standard", "full", "browser", "serve"])
-def test_each_step_uses_the_environment_in_the_data_folder(step, tmp_path, monkeypatch):
-    seen = {}
+@pytest.fixture
+def ran(tmp_path, monkeypatch):
+    """Runs install.py's main for a step without running uv: returns each command and the environment it got."""
+    seen = []
 
     def run(args):
-        seen["args"], seen["venv"] = args, os.environ["UV_PROJECT_ENVIRONMENT"]
+        seen.append((args, os.environ["UV_PROJECT_ENVIRONMENT"]))
         return subprocess.CompletedProcess(args, 0)
 
-    fake_setup(tmp_path)
     monkeypatch.setattr(install.subprocess, "run", run)
+    monkeypatch.setattr(install.shutil, "which", lambda name: "nvidia-smi" if name == "nvidia-smi" else None)
     monkeypatch.setenv("UV", "the-uv-that-started-us")
     monkeypatch.setenv("UV_PROJECT_ENVIRONMENT", "somewhere else")  # restored after the test
-    monkeypatch.setattr(install.sys, "argv", ["install.py", step, str(tmp_path)])
-    with pytest.raises(SystemExit) as done:
-        install.main()
-    assert done.value.code == 0
-    assert seen["venv"] == str(tmp_path / "venv")
-    assert seen["args"][0] == "the-uv-that-started-us"
-    assert seen["args"][2:6] == ["--frozen", "--no-active", "--project", str(install.ENGINE)]
+
+    def main(step):
+        monkeypatch.setattr(install.sys, "argv", ["install.py", step, str(tmp_path)])
+        with pytest.raises(SystemExit) as done:
+            install.main()
+        assert done.value.code == 0
+        return seen
+    return main
+
+
+@pytest.mark.parametrize("step", ["packages", "standard", "full", "gpu", "speakers", "browser", "serve"])
+def test_each_step_uses_the_environment_in_the_data_folder(step, tmp_path, ran):
+    fake_setup(tmp_path)
+    (tmp_path / install.KEY_FILE).write_text("hf_saved_before")  # speakers: the key was given earlier
+    for args, venv in ran(step):
+        assert venv == str(tmp_path / "venv")
+        assert args[0] == "the-uv-that-started-us"
+        assert args[2:6] == ["--frozen", "--no-active", "--project", str(install.ENGINE)]
 
 
 def test_serve_starts_the_engine_once_the_setup_has_run(tmp_path):
-    assert install.uv_args("serve", tmp_path)[-2:] == ["--quiet", "video-audio-engine"]
+    assert install.uv_steps("serve", tmp_path) == [["run", "--frozen", "--no-active", "--project", str(install.ENGINE),
+                                                     "--quiet", "video-audio-engine"]]
 
 
 def test_an_unknown_step_is_refused(tmp_path):
     with pytest.raises(SystemExit, match="Unknown step"):
-        install.uv_args("everything", tmp_path)
+        install.uv_steps("everything", tmp_path)
+
+
+def test_the_options_chosen_are_kept_by_later_setups(tmp_path, ran):
+    """uv sync removes what isn't asked for, so a setup after an update must ask for the options again."""
+    assert ran("gpu")[0][0][1:] == ["sync", "--frozen", "--no-active", "--project", str(install.ENGINE),
+                                    "--extra", "gpu"]
+    assert ran("gpu")[-1][0][-3:] == ["--check", "--data", str(tmp_path)]  # says whether the card can now be used
+    assert ran("packages")[-1][0][-2:] == ["--extra", "gpu"]
+    assert install.options(tmp_path) == ["gpu"]
+
+
+def test_without_an_nvidia_card_there_is_nothing_to_install(tmp_path, monkeypatch):
+    monkeypatch.setattr(install.shutil, "which", lambda name: None)
+    with pytest.raises(SystemExit, match="No NVIDIA graphics card was found"):
+        install.prepare("gpu", tmp_path)
+    assert install.options(tmp_path) == []
+
+
+def test_speaker_labels_ask_for_the_key_in_a_window_once(tmp_path, ran, monkeypatch):
+    asked = []
+
+    def window(data):
+        asked.append(data)
+        (data / install.KEY_FILE).write_text("hf_typed_in_the_window")
+        return True
+
+    monkeypatch.setattr(install, "ask_key", window)
+    commands = [args[1:] for args, _ in ran("speakers")]
+    assert asked == [tmp_path]
+    assert commands[0][-2:] == ["--extra", "speakers"]  # the packages, then the models (which need the key)
+    assert commands[1][-4:] == ["--warm", "speakers", "--data", str(tmp_path)]
+    ran("speakers")
+    assert asked == [tmp_path]  # the key is kept: not asked again
+
+
+def test_closing_the_key_window_stops_the_setup(tmp_path, monkeypatch):
+    monkeypatch.setattr(install, "ask_key", lambda data: False)
+    with pytest.raises(SystemExit, match="closed without a key"):
+        install.prepare("speakers", tmp_path)
+    assert install.options(tmp_path) == []
 
 
 async def check_twice(data):

@@ -1,6 +1,6 @@
 ---
 name: setup
-description: Sets up Video Audio Agents on this computer (installs the engine and downloads its models). Use right after the plugin is installed or updated, or when the person says "set up video audio agents" (standard) or "set up video audio agents with voice" (full). Also use when check_setup reports something missing.
+description: Sets up Video Audio Agents on this computer (installs the engine and downloads its models). Use right after the plugin is installed or updated, or when the person says "set up video audio agents" (standard) or "set up video audio agents with voice" (full). Also use when check_setup reports something missing, and for the two options installed only on request - "set up the graphics card" (faster transcripts on an NVIDIA card) and "set up speaker labels" (who said what, with a free Hugging Face key).
 allowed-tools:
   - Bash(uv *)
   - Bash(~/.local/bin/uv *)
@@ -56,10 +56,46 @@ Tell the person which mode and its size before starting. Re-running setup is alw
 Pages behind a login open in Edge or Chrome. If check_setup reports `"browser": null` and the person wants to download from such pages, or they ask to "set up the login browser", install Playwright's own Chromium (about 150 MB):
 `uv run --no-project --python 3.11 "${CLAUDE_PLUGIN_ROOT}/skills/setup/install.py" browser "${CLAUDE_PLUGIN_DATA}"`
 
+## Graphics card (only on request)
+
+"Set up the graphics card", or yes to check_setup's note that an NVIDIA graphics card was found. It downloads NVIDIA's
+maths library (about 0.6 GB; 0.9 GB on disk), so transcripts run on the card: on a recent card about 10 to 20 times
+faster. Voice work and speaker labels stay on the processor. Run the standard setup first. Then:
+`uv run --no-project --python 3.11 "${CLAUDE_PLUGIN_ROOT}/skills/setup/install.py" gpu "${CLAUDE_PLUGIN_DATA}"`
+
+It ends with the JSON check: `gpu_usable` true means it worked. Say so, and that the engine starts using the card
+after a restart of Claude Code. If it says no NVIDIA card was found, there is nothing to install: say so in one line.
+
+## Speaker labels (only on request)
+
+"Set up speaker labels", "who said what", or check_setup's `speaker_labels` is false when they want it. It installs
+the speaker model's packages (about 1 GB) and downloads its models (33 MB). The models are free but gated on Hugging
+Face: the person needs their own account, must accept two models' terms, and makes a key. You can't do these for
+them. Run the standard setup first.
+
+1. Tell them, as numbered steps, and wait until they say they're done:
+   1. Make a free account at https://huggingface.co/join (skip if they have one).
+   2. Logged in, open https://huggingface.co/pyannote/segmentation-3.0 and accept its terms (approval is instant).
+   3. The same on https://huggingface.co/pyannote/speaker-diarization-3.1.
+   4. At https://huggingface.co/settings/tokens choose Create new token, type "Read", any name, Create, and copy it.
+   Say: "Don't paste the key here in the chat: a small window will open for it."
+2. Run:
+   `uv run --no-project --python 3.11 "${CLAUDE_PLUGIN_ROOT}/skills/setup/install.py" speakers "${CLAUDE_PLUGIN_DATA}"`
+   Say a small window has opened: paste the key there and click Save. The key is kept only in the plugin's private
+   folder on this computer and is sent only to Hugging Face, only to download these two models. Then the packages
+   install (several minutes) and the models download.
+3. If it stops because Hugging Face refused, say what its message says to do (accept the terms on the pages it
+   names, or a new key), then run step 2 again: it asks for the key again only when the old one was refused.
+
+If the person pastes the key in the chat anyway: don't repeat it or use it. Tell them it is now in this conversation,
+and suggest they delete that key on https://huggingface.co/settings/tokens and make a new one for the window.
+
+Finish as in step 4 above: `speaker_labels` true in the JSON check, and a restart of Claude Code so the engine has it.
+
 ## If something fails
 
 Say which step failed and why, in one sentence (for example "the internet connection dropped during the download"). Then: "Running the setup again continues where it stopped." The details are in `${CLAUDE_PLUGIN_DATA}/engine.log`. Do not try other install methods or edit any files.
 
 ## Updates
 
-"Update video audio agents": run `claude plugin marketplace update madavai`, then `claude plugin update video-audio-agents@madavai`, then this setup again (it only installs what changed), then ask the person to restart Claude Code.
+"Update video audio agents": run `claude plugin marketplace update madavai`, then `claude plugin update video-audio-agents@madavai`, then this setup again (it only installs what changed, and keeps the graphics-card and speaker-label options if they were set up), then ask the person to restart Claude Code.

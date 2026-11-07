@@ -6,9 +6,12 @@ import os
 import shutil
 import sys
 import threading
+import urllib.error
 import urllib.request
 import zipfile
 from pathlib import Path
+
+from mcp.server.mcpserver.exceptions import ToolError
 
 from .paths import data_dir
 
@@ -57,9 +60,29 @@ MODELS = {
         "repo": ("adefossez/HTDemucs", "cbc8a9b1a87023b7fd74e7b3412e6321c0eab003"),
         "files": {"955717e8.safetensors": 84025440},
     },
+    # Speaker labels: pyannote's speaker-diarization-3.1 is its settings plus two models, one finding who speaks
+    # when, one telling voices apart. The first two are gated: the person accepts their terms on Hugging Face.
+    "speaker-settings": {
+        "label": "speaker labels",
+        "repo": ("pyannote/speaker-diarization-3.1", "84fd25912480287da0247647c3d2b4853cb3ee5d"),
+        "files": {"config.yaml": 469},
+    },
+    "speaker-turns": {
+        "label": "speaker labels",
+        "repo": ("pyannote/segmentation-3.0", "e66f3d3b9eb0873085418a7b813d3b369bf160bb"),
+        "files": {"pytorch_model.bin": 5905440},
+    },
+    "speaker-voices": {
+        "label": "speaker labels",
+        "repo": ("pyannote/wespeaker-voxceleb-resnet34-LM", "837717ddb9ff5507820346191109dc79c958d614"),
+        "files": {"pytorch_model.bin": 26645418},
+    },
 }
 STANDARD = ["base", "small"]
 FULL = STANDARD + ["large-v3-turbo", "voice", "english", "multilingual", "music"]
+SPEAKERS = ["speaker-settings", "speaker-turns", "speaker-voices"]  # setup option "speakers", not part of full
+GATED = ["pyannote/speaker-diarization-3.1", "pyannote/segmentation-3.0"]  # downloaded with the person's key
+KEY_FILE = "hugging-face-key.txt"  # in the data folder, written by the setup skill's install.py (its key window)
 FFMPEG_GB = 0.1  # about; the exact size comes with the download
 # The one big model in memory, kept for the next job: {name: model}. Speech-to-text, the voice models and the music
 # keeper share it, and each clears it before loading another, so the computer keeps enough memory.
@@ -113,7 +136,7 @@ def ensure(names, report=None) -> None:
     """Downloads whatever is missing of these models. `report(percent, message)` gets progress."""
     missing = missing_files(names)
     total, done = sum(size for _, size in missing.values()) or 1, 0
-    labels = ", ".join(MODELS[n]["label"] for n in names if not is_present(n))
+    labels = ", ".join(dict.fromkeys(MODELS[n]["label"] for n in names if not is_present(n)))
     for path, (url, size) in missing.items():
         def file_report(got, _size, done=done):
             if report:
@@ -133,6 +156,10 @@ def download(url: str, path: Path, size: int | None, report=None) -> None:
     request = urllib.request.Request(url, headers={"User-Agent": "video-audio-agents"})
     if have:
         request.add_header("Range", f"bytes={have}-")
+    gated = next((repo for repo in GATED if url.startswith(f"{HUGGING_FACE}/{repo}/")), None)
+    if gated:
+        # Unredirected: Hugging Face sends the file from another server, which must not receive the key.
+        request.add_unredirected_header("Authorization", f"Bearer {hugging_face_key()}")
     try:
         with urllib.request.urlopen(request, timeout=60) as response:
             if have and response.status != 206:  # the server ignored the resume request: start again
@@ -144,12 +171,38 @@ def download(url: str, path: Path, size: int | None, report=None) -> None:
                     have += len(chunk)
                     if report:
                         report(have, size)
+    except urllib.error.HTTPError as e:
+        if gated and e.code in (401, 403):
+            raise refused(gated, e.code) from None
+        raise ConnectionError(f"The download of {path.name} stopped ({e}). "
+                              "Try again: it continues where it stopped.") from e
     except (OSError, http.client.HTTPException) as e:
         raise ConnectionError(f"The download of {path.name} stopped ({e}). "
                               "Try again: it continues where it stopped.") from e
     if size and have != size:
         raise ConnectionError(f"The download of {path.name} stopped early. Try again: it continues where it stopped.")
     os.replace(part, path)
+
+
+def hugging_face_key() -> str:
+    """The person's Hugging Face key, saved by the setup's key window. Sent only with the gated files' downloads."""
+    file = data_dir() / KEY_FILE
+    if not file.exists():
+        raise ToolError('Speaker labels need a free Hugging Face key, entered once: say "set up speaker labels".')
+    return file.read_text(encoding="utf-8").strip()
+
+
+def refused(repo: str, code: int) -> ToolError:
+    """Hugging Face said no to the key: 401 is a key it doesn't know (removed here, so the setup asks again),
+    403 a key whose account hasn't accepted the model's terms yet."""
+    if code == 401:
+        (data_dir() / KEY_FILE).unlink(missing_ok=True)
+        return ToolError("Hugging Face didn't accept the saved key (mistyped, or deleted on the site). "
+                         'Say "set up speaker labels" to enter it again.')
+    pages = " and ".join(f"{HUGGING_FACE}/{gated}" for gated in GATED)
+    return ToolError(f"Hugging Face won't share {repo} with this key yet. Logged in on huggingface.co, accept the "
+                     f'terms on {pages}, and check the key is of the "Read" type, then say "set up speaker labels" '
+                     "again.")
 
 
 def ffmpeg_dir() -> Path:

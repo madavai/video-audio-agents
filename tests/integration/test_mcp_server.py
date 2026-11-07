@@ -11,7 +11,7 @@ from mcp.client.stdio import StdioServerParameters, stdio_client
 TOOLS = {"check_setup", "fetch_media", "transcribe", "save_text", "make_subtitles", "cut_clip", "merge_audio_video",
          "translated_segments", "list_voices", "save_voice", "record_voice", "speak", "speak_timed", "change_voice",
          "list_links", "search_texts", "clean_audio", "crop_vertical", "mix_music", "export_podcast",
-         "set_pronunciations"}
+         "set_pronunciations", "label_speakers"}
 
 
 async def talk_to_engine(data_dir, calls):
@@ -44,7 +44,7 @@ def test_engine_starts_lists_its_tools_and_answers_check_setup(private_data):
     assert not results[0].is_error
     check = json.loads(results[0].content[0].text)
     expected = {"ok", "python", "ffmpeg", "deno", "browser", "models_present", "models_missing_gb",
-                "free_ram_gb", "free_disk_gb", "gpu", "notes"}
+                "free_ram_gb", "free_disk_gb", "gpu", "gpu_usable", "speaker_labels", "notes"}
     assert expected <= set(check)
     assert check["python"].startswith("3.11")
     assert check["models_present"] == []  # a fresh data folder has no models
@@ -85,6 +85,16 @@ def test_a_title_over_60_characters_is_refused_naming_it(private_data, tmp_path)
                                                "characters, over the 60 characters YouTube shows in full; "
                                                "shorten it and save again.")
     assert [p.name for p in folder.iterdir()] == ["Lesson.txt"]
+
+
+def test_speaker_labels_without_the_option_say_how_to_set_it_up(private_data, copy_of):
+    audio = copy_of("talk.mp3")
+    segments = audio.with_name("talk.segments.json")
+    segments.write_text('[{"start": 0.3, "end": 3.0, "text": "And so my fellow Americans,"}]', encoding="utf-8")
+    calls = [("label_speakers", {"file": str(audio), "segments_file": str(segments)})]
+    _, results, _ = anyio.run(talk_to_engine, private_data, calls)
+    assert results[0].is_error and results[0].content[0].text.endswith(
+        'say "set up speaker labels" (it needs a free Hugging Face account).')
 
 
 def test_details_reach_the_log_file(private_data):

@@ -5,7 +5,7 @@ import shutil
 import sys
 from pathlib import Path
 
-from . import models
+from . import gpu, models, speakers
 from .paths import data_dir, output_root
 
 GB = 1024**3
@@ -66,8 +66,12 @@ def check_setup() -> dict:
         notes.append(f"Only {ram} GB of memory is free; voice work needs about 6 GB.")
     if disk < 5:
         notes.append(f"Only {disk} GB of disk space is free; the models need up to 10 GB.")
-    if shutil.which("nvidia-smi"):
-        notes.append("An NVIDIA graphics card was found; using it to go faster comes in a later version.")
+    card, usable = gpu.card(), gpu.usable()
+    if card and not gpu.installed():
+        notes.append(f'An NVIDIA graphics card was found ({card}): "set up the graphics card" (a 0.6 GB download) '
+                     "makes transcripts several times faster.")
+    elif card and not usable:
+        notes.append(f"The graphics card ({card}) can't be used right now, so transcripts run on the processor.")
     return {
         "ok": bool(ffmpeg and deno) and all(name in present for name in models.STANDARD),
         "python": platform.python_version(),
@@ -78,7 +82,9 @@ def check_setup() -> dict:
         "models_missing_gb": missing,
         "free_ram_gb": ram,
         "free_disk_gb": disk,
-        "gpu": bool(shutil.which("nvidia-smi")),
+        "gpu": card,  # the NVIDIA card's name, or null
+        "gpu_usable": usable,  # transcripts run on it (voice and speaker labels stay on the processor)
+        "speaker_labels": speakers.ready(),
         "output_folder": str(output_root()),
         "notes": notes,
     }

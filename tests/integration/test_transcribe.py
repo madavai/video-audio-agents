@@ -107,3 +107,37 @@ def test_paragraphs_break_after_long_sentences():
     lines = [{"start": i, "end": i + 1, "text": "word " * 50 + "end."} for i in range(4)]
     text = transcribe.as_text(lines, timestamps=False)
     assert text.count("\n\n") == 1 and text.endswith("end.\n")
+
+
+def test_if_the_graphics_card_fails_the_processor_takes_over(copy_of, with_models, monkeypatch):
+    """CI has no card: the stand-in "card" fails the way a missing NVIDIA library does, at load."""
+    import faster_whisper
+    from video_audio_engine import gpu, models
+
+    real, devices = faster_whisper.WhisperModel, []
+
+    def model(folder, device, **options):
+        devices.append(device)
+        if device == "cuda":
+            raise RuntimeError("Library cublas64_12.dll is not found or cannot be loaded")
+        return real(folder, device=device, **options)
+
+    monkeypatch.setattr(faster_whisper, "WhisperModel", model)
+    monkeypatch.setattr(gpu, "failed", None)
+    monkeypatch.setattr(gpu, "usable", lambda: gpu.failed is None)
+    monkeypatch.setattr(models, "loaded", {})
+    audio = copy_of("talk.mp3")
+    result = run(audio)
+    assert devices == ["cuda", "cpu"] and list(models.loaded) == [("base", "cpu")]
+    assert result["note"] == "The graphics card couldn't be used this time, so this ran on the processor (slower)."
+    assert all(word in (audio.parent / "talk.txt").read_text(encoding="utf-8").lower() for word in WORDS)
+    assert "note" not in run(copy_of("talk.mp4"))  # the card isn't tried again, so no note the next time
+    assert devices == ["cuda", "cpu"]  # the model on the processor is kept
+
+
+def test_on_the_processor_a_failure_is_not_blamed_on_the_card(tmp_path, with_models, monkeypatch):
+    from video_audio_engine import gpu
+    monkeypatch.setattr(gpu, "usable", lambda: False)
+    (tmp_path / "noise.mp3").write_bytes(b"not audio at all" * 100)
+    with pytest.raises(ToolError, match="couldn't be read as audio or video"):
+        run(tmp_path / "noise.mp3")

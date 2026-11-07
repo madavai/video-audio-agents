@@ -14,6 +14,10 @@ Claude installs the plugin, then runs the setup: about 3 GB of downloads, once. 
 say "set up video audio agents with voice" instead (about 10 GB). If Claude asks you to restart first, close Claude
 Code, open it again and say "set up video audio agents".
 
+Two options, only if you ask: "set up the graphics card" (transcripts about 10 to 20 times faster on an NVIDIA card,
+0.6 GB) and "set up speaker labels" (who said what; about 1 GB, and a free Hugging Face account, see the
+[user guide](docs/USER-GUIDE.md#who-said-what)).
+
 **Claude desktop app (regular chat):** Customize → Plugins → Add → paste `madavai/video-audio-agents` → Install.
 Then say "set up video audio agents".
 
@@ -48,7 +52,7 @@ When someone asks you to install this repository, do not clone it. Run:
 >
 > Make 3 Shorts from the best moments, with subtitles.
 >
-> Clean up the audio of my recording.
+> Clean up the audio of my recording. · Who said what in this interview?
 
 **Translations** (the translator)
 
@@ -89,14 +93,15 @@ Say "update video audio agents". Or turn on auto-update: `/plugin` → Marketpla
 - You are responsible for following the terms of the sites you download from. The voice helper only saves a voice
   that is yours or that you have permission to use.
 - The helpers never post anything anywhere: posts are drafts for you to review.
-- Still to come: speaker labels, graphics-card speed-up and Mac.
+- Only transcripts use a graphics card (NVIDIA); voice work and speaker labels run on the processor.
+- Still to come: Kannada and Tamil spoken directly in the saved voice, and Mac.
 
 ## Status
 
-Version 1.3: Wave 1 of the [build plan](docs/BUILD-PLAN.md) is complete, and Wave 2 has begun with whole
+Version 1.4: Wave 1 of the [build plan](docs/BUILD-PLAN.md) is complete, and Wave 2 has begun with whole
 playlists and channels, search across transcripts and audio clean-up, then Shorts from a video's best moments, a
-week's content calendar, quote cards, bilingual and simpler translations, and narration with your own music and
-podcast-ready files with chapters. See the [changelog](CHANGELOG.md) for
+week's content calendar, quote cards, bilingual and simpler translations, narration with your own music and
+podcast-ready files with chapters, and now who said what and faster transcripts on a graphics card. See the [changelog](CHANGELOG.md) for
 what changed, and [ADR 0001](docs/adr/0001-python-engine-as-plugin.md) for why it is built this way.
 
 ## Licence

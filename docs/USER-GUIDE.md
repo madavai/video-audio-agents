@@ -6,7 +6,7 @@ work on your own computer:
 
 | Helper | What it does |
 |---|---|
-| **transcriber** | downloads video and audio from links (also whole playlists and channels), makes transcripts, subtitles, notes (summary, chapters, quotes and more) and clips, picks the best moments as clips or upright Shorts, finds where something was said, cleans up the sound |
+| **transcriber** | downloads video and audio from links (also whole playlists and channels), makes transcripts, subtitles, notes (summary, chapters, quotes and more) and clips, picks the best moments as clips or upright Shorts, finds where something was said, labels who said what, cleans up the sound |
 | **translator** | translates transcripts, subtitles, posts and any text, keeping your fixed terms and names; makes bilingual and simpler versions for learners |
 | **voice** | saves a voice (only with permission), reads text aloud in it (a narration, a podcast episode, an audiobook), adds your own music, intro and outro, makes podcast-ready files with chapters, learns how to say names, dubs a video into another language, changes the voice in a recording |
 | **publisher** | writes YouTube titles, a description and tags, LinkedIn, X, Instagram and newsletter drafts, Shorts titles and captions, a week's content calendar and quote cards |
@@ -41,6 +41,15 @@ already there and continues a broken download.
 
 With the standard setup, the first accurate transcript downloads 1.5 GB more, and the first voice job downloads the
 voice models (1 to 3 GB each). Claude tells you the size and asks before it starts.
+
+Two options are added only if you ask for them, after the standard setup:
+
+| Option | Size | What it adds |
+|---|---|---|
+| "set up the graphics card" | about 0.6 GB (0.9 GB on disk) | transcripts on an NVIDIA graphics card, about 10 to 20 times faster ([more](#faster-transcripts-on-a-graphics-card)) |
+| "set up speaker labels" | about 1 GB | who said what in interviews and conversations; needs a free Hugging Face account ([more](#who-said-what)) |
+
+Running the setup again later (after an update, for example) keeps the options you chose.
 
 The plugin's own files live in its data folder (`~/.claude/plugins/data/video-audio-agents-madavai/`): its private
 copy of Python, ffmpeg (the video tool), the models, your browser logins and the log file. Nothing you make is kept
@@ -157,6 +166,47 @@ louder, a loud one quieter, and the loudest moments stay clear of distortion. A 
 cutting it would put the picture out of step; for a trimmed sound-only file, ask Claude to clean the video's .mp3.
 You can also ask for only one of the two ("just cut the silence"). It takes about a minute for every 15 minutes of
 sound. Claude tells you how loud it was before and how much silence was cut.
+
+### Who said what
+
+> Who said what in this interview?
+>
+> A transcript of this podcast episode with the speakers, and a summary.
+
+Claude transcribes the recording as usual, then finds who speaks when and saves a second transcript next to the
+first, `<title> (speakers).txt`, with the speaker on every line: `[12.5s] Speaker 2: ...`. The speakers are named
+Speaker 1, Speaker 2 and so on, in the order they first speak. If the recording makes it clear who is who (someone
+says their name, or is greeted by it), Claude tells you who each speaker probably is; the file keeps the numbers.
+A line where two people talk goes to the one who talks most of it. Saying how many people speak ("the two people in
+this interview") helps it tell them apart. It runs on the processor: about a minute for every 10 minutes of sound.
+
+Notes (a summary, key points, chapters) of an interview, panel, podcast or meeting are written from the speakers'
+transcript, so they say who said what. A recording with one speaker gets no labels. Subtitles stay without names.
+
+**Setting it up (once):** say "set up speaker labels". The speaker models are free, but their makers (pyannote, on
+the Hugging Face model site) ask everyone to accept their terms first, so you need your own free account there:
+
+1. Make an account at https://huggingface.co/join (skip this if you have one).
+2. Logged in, open https://huggingface.co/pyannote/segmentation-3.0 and accept the terms (approval is instant).
+3. The same on https://huggingface.co/pyannote/speaker-diarization-3.1.
+4. At https://huggingface.co/settings/tokens choose **Create new token**, the type **Read**, any name, then
+   **Create**, and copy the key (it starts with `hf_`).
+
+Claude then opens a small window: paste the key there and click **Save**. Don't paste it into the chat, because
+the conversation keeps what you type. The key is kept only in the plugin's private folder on your computer and is
+sent only to Hugging Face, only to download these two models (33 MB, once). If Hugging Face refuses it, Claude
+says why (usually a page whose terms weren't accepted yet) and asks for the key again only if it was wrong.
+
+### Faster transcripts on a graphics card
+
+If your computer has an NVIDIA graphics card, the setup check says so. Say "set up the graphics card" (about
+0.6 GB) and restart Claude Code: transcripts then run on the card. On an RTX 5090 laptop card, a 7 minute 52 second
+NASA video took 4.5 seconds instead of 58 ("balanced") and 6 seconds instead of 2¼ minutes ("accurate"), with the
+same words. If the card can't be used at some point (another program has filled its memory, for example), the
+transcript is made on the processor as before and Claude says so in one line.
+
+Voice work, dubbing and speaker labels stay on the processor: the voice models are built on a version of PyTorch
+(the maths library they run on) that can't use the newest cards, such as the RTX 50 series.
 
 ### Best moments and Shorts
 
@@ -383,6 +433,8 @@ for a Shorts package; if the Shorts already exist, only the publisher runs.
   you share in the chat.
 - Logins to course sites are kept in a private browser profile in the plugin's data folder; they are never shown or
   shared.
+- Your Hugging Face key (only if you set up speaker labels) is kept in the plugin's data folder too. It is sent only
+  to Hugging Face, to download the two speaker models, and never shown in the chat, the log or any file Claude makes.
 
 ## Updating
 
@@ -393,17 +445,18 @@ madavai.
 
 ## Uninstalling
 
-Say "uninstall video audio agents". Claude removes the plugin and its data folder (the engine, the models and your
-browser logins, up to 10 GB). Everything you made, in `Documents/VideoAudioAgents/`, stays.
+Say "uninstall video audio agents". Claude removes the plugin and its data folder (the engine, the models, your
+browser logins and your Hugging Face key, up to 12 GB). Everything you made, in `Documents/VideoAudioAgents/`, stays.
+If you set up speaker labels, you can also delete the key on https://huggingface.co/settings/tokens.
 
 ## Limits
 
 - Runs on your computer: Windows first. Mac is checked in a later version. Not available in claude.ai in a browser
   or on phones.
-- Uses the processor only; using a graphics card to go faster comes in a later version.
+- Only transcripts use the graphics card, and only an NVIDIA one; voice work and speaker labels run on the processor.
 - Copy-protected services (Netflix and similar) are not supported.
 - You are responsible for following the terms of the sites you download from.
-- Still to come: who-said-what labels, and Kannada and Tamil spoken directly in the saved voice.
+- Still to come: Kannada and Tamil spoken directly in the saved voice.
 
 ## Troubleshooting
 
@@ -426,6 +479,15 @@ browser logins, up to 10 GB). Everything you made, in `Documents/VideoAudioAgent
   not remove background noise or echo.
 - **The login page opens but nothing downloads:** log in, then press play on the video, and leave the window open
   until Claude says the download has started.
+- **Speaker labels: "Hugging Face won't share ... with this key yet":** log in on huggingface.co, accept the terms
+  on the two pages the message names, then say "set up speaker labels" again. A key of the "Fine-grained" type also
+  needs reading access to public gated models; a "Read" key has it.
+- **Speaker labels: "didn't accept the saved key":** the key was mistyped or deleted on the site. Say "set up speaker
+  labels" and paste a new one in the window.
+- **Two people get the same label, or one person two:** say how many people speak ("label the two speakers"); very
+  similar voices, or someone heard only for a word or two, can still be mixed up.
+- **"The graphics card couldn't be used this time":** the transcript was made on the processor instead. Close other
+  programs that use the card (games, video editors) and try again; restarting Claude Code tries the card again.
 - **No Edge or Chrome:** say "set up the login browser" to install one just for this (about 150 MB).
 - **Wikipedia or Wikimedia Commons:** sound and video files download directly from the file's page or its file
   link; no browser window opens. The folder is named after the file (for example `Roosevelt Pearl Harbor`).
