@@ -61,6 +61,11 @@ release is 1.5.0 (the plan's `v1.1.0` was written before every phase raised the 
 - The `indic` extra moves five shared packages to the older versions the voice and speaker models were made with,
   for everyone (uv keeps one version of each package): filelock 4.2.4 → 3.32.7, fsspec 2026.9.0 → 2026.7.0,
   omegaconf 2.4.0 → 2.3.1, rich 15.0.0 → 13.9.4 and twine 7.0.0 → 6.2.0. Every test passes with them.
+- **Cleaning up a recording cuts the silence at the end on a Mac too.** The Mac gets ffmpeg 7.0 (Windows and Linux
+  8.0), which gives an mp3's length up to 0.08 seconds longer than its sound (it counts the encoder's delay at the
+  start). The silence at the end was then not seen as running to the end, and was kept: a quiet recording lost 2.8
+  seconds instead of 6.5. `clean_audio` now counts the length in the decoded sound (`astats`' number of samples),
+  where the silence is found. Found by the first test run on a Mac.
 - Why F5-TTS 1.0.8: 1.1.0 to 1.1.9 cap pydantic below what the MCP package needs, and later ones need torchcodec. Its
   trainer imports `datasets`, so the extra sets a floor on it (uv otherwise picked one from 2020) and keeps pyarrow
   below 26, which refuses NumPy 1 (the voice models need it).
