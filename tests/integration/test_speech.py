@@ -86,7 +86,8 @@ def test_saving_voices_from_audio_and_video(copy_of, with_models):
     folder = paths.output_root() / "voices"
     assert saved == {"voice": "Anna", "sample_file": str(folder / "Anna.wav"), "seconds": 30.0}
     assert run(voices.save_voice, str(copy_of("talk.mp4")), "Anna", True)["voice"] == "Anna (2)"  # never replaced
-    assert voices.list_voices() == {"voices": ["Anna", "Anna (2)"], "folder": str(folder)}
+    assert voices.list_voices() == {"voices": ["Anna", "Anna (2)"], "folder": str(folder),
+                                    "kannada_sentence": voices.SENTENCE, "kannada_readings": []}
     sample = soundfile.read(voices.sample("Anna", copy_of("talk.mp3").parent))[0]
     assert len(sample) == 10 * voices.RATE and np.abs(sample).max() == pytest.approx(0.9, abs=0.01)
 
@@ -165,6 +166,31 @@ def test_kannada_is_read_by_a_reader_voice_and_changed_into_the_saved_voice(stan
     result = run(speech.speak, "Test", "Kannada", "as_made", "ನಮಸ್ಕಾರ.")
     assert stand_in.texts == []  # not spoken directly: the reader's audio was converted, keeping its length
     assert result["seconds"] == pytest.approx(len(voices.read_audio(FIXTURES / "jfk.wav", 16000)) / 16000, abs=0.6)
+    assert result["route"] == "reader"
+
+
+class IndicStandIn(StandIn):
+    """IndicF5 (indic.Speaker): listens to the voice's reading of the Kannada sentence, then speaks like StandIn."""
+
+    def prepare_conditionals(self, reading):
+        self.reading = Path(reading).name
+
+
+def test_kannada_is_spoken_directly_once_the_sentence_is_read(stand_in, voice, copy_of, monkeypatch):
+    """With the Kannada voice set up (IndicF5 stood in for), a voice's reading of the sentence, given as a file, makes
+    Kannada come straight from the voice model. Before that reading, and for Tamil always, the reader voice."""
+    model = IndicStandIn()
+    monkeypatch.setattr(speech.indic, "ready", lambda: True)
+    monkeypatch.setattr(speech.indic, "load", lambda report: model)
+    assert run(speech.speak, "Test", "Kannada", "as_made", "ನಮಸ್ಕಾರ.")["route"] == "reader"
+    saved = run(voices.save_voice, str(copy_of("talk.mp3")), "Test", True, True)  # 11 s: the sentence and a little
+    assert saved["kannada_reading"] == str(paths.output_root() / "voices" / "Test.kannada.flac")
+    text = voices.SENTENCE
+    result = run(speech.speak, "Test", "Kannada", "as_made", text)
+    assert result["route"] == "direct" and model.reading == "Test.kannada.flac" and model.texts == [text]
+    assert result["seconds"] == pytest.approx(len(text) * SECONDS_PER_LETTER + speech.PAUSE, abs=0.1)
+    assert run(speech.speak, "Test", "Tamil", "as_made", "வணக்கம்.")["route"] == "reader"
+    assert model.texts == [text]
 
 
 def test_dubbing_puts_every_line_at_its_time(stand_in, voice, tmp_path):
@@ -177,7 +203,7 @@ def test_dubbing_puts_every_line_at_its_time(stand_in, voice, tmp_path):
     file.write_text(json.dumps(segments), encoding="utf-8")
     result = run(speech.speak_timed, str(file), "Test", "Hindi", "little_slower")
     assert result["output_file"] == str(tmp_path / "Lesson (Hindi) (Test voice).mp3")
-    assert result["lines"] == 4 and result["overrun_count"] == 1
+    assert result["lines"] == 4 and result["overrun_count"] == 1 and result["route"] == "direct"
     assert result["overruns"] == [{"at": "0:05", "over_by": 0.2}] and result["most_late"] == 0.2
     assert result["seconds"] == pytest.approx(5.0 + 2.0 / 1.15 + 0.5 / 0.9, abs=0.05)
     starts = sound_starts(result["output_file"])

@@ -1,5 +1,6 @@
-"""The person's Hugging Face key: sent only to Hugging Face, only for the gated speaker models, never to the server
-Hugging Face redirects the download to, and never into a message. No real request is made: urlopen is replaced."""
+"""The person's Hugging Face key: sent only to Hugging Face, only for the gated models (speaker labels, the Kannada
+voice), never to the server Hugging Face redirects the download to, and never into a message. No real request is
+made: urlopen is replaced."""
 import email.message
 import urllib.error
 import urllib.request
@@ -45,9 +46,9 @@ def requests(monkeypatch):
         seen.append(request)
         if "code" in answer:
             raise urllib.error.HTTPError(request.full_url, answer["code"], "no", email.message.Message(), None)
-        name = next(n for n in models.SPEAKERS if request.full_url.startswith(f"{models.HUGGING_FACE}/"
-                                                                              f"{models.MODELS[n]['repo'][0]}/"))
-        return Response(sum(models.MODELS[name]["files"].values()))
+        return Response(next(size for name in models.SPEAKERS + models.INDIC
+                             for file, size in models.MODELS[name]["files"].items()
+                             if request.full_url.endswith(f"/{models.MODELS[name]['repo'][1]}/{file}")))
 
     monkeypatch.setattr(models.urllib.request, "urlopen", urlopen)
     monkeypatch.delenv("VAA_MODELS_URL", raising=False)
@@ -59,8 +60,16 @@ def test_the_speaker_models_are_pinned_with_exact_sizes():
         repo, revision = models.MODELS[name]["repo"]
         assert repo.startswith("pyannote/") and len(revision) == 40
         assert all(size > 0 for size in models.MODELS[name]["files"].values())
-    assert set(models.GATED) < {models.MODELS[name]["repo"][0] for name in models.SPEAKERS}
+    assert {repo for repo, feature in models.GATED.items() if feature == "speaker labels"} < {
+        models.MODELS[name]["repo"][0] for name in models.SPEAKERS}
     assert not set(models.SPEAKERS) & set(models.FULL)  # an option, not part of the full setup
+
+
+def test_the_kannada_voice_is_pinned_gated_and_an_option():
+    repo, revision = models.MODELS["kannada"]["repo"]
+    assert repo == "ai4bharat/IndicF5" and len(revision) == 40 and models.GATED[repo] == "the Kannada voice"
+    assert models.MODELS["kannada"]["files"] == {"model.safetensors": 1402789408, "checkpoints/vocab.txt": 11283}
+    assert models.INDIC == ["kannada"] and "kannada" not in models.FULL
 
 
 def test_a_gated_file_gets_the_key_only_for_hugging_face_itself(key, requests):
@@ -88,7 +97,20 @@ def test_an_open_model_is_downloaded_without_the_key(key, requests):
 def test_without_a_key_the_person_is_told_to_set_it_up(private_data, requests):
     with pytest.raises(ToolError, match='say "set up speaker labels"'):
         models.ensure(["speaker-settings"])
+    with pytest.raises(ToolError, match='say "set up the Kannada voice"'):
+        models.ensure(["kannada"])
     assert requests[0] == []  # nothing was asked of Hugging Face
+
+
+def test_the_kannada_voice_downloads_with_the_key_into_its_own_folder(key, requests, monkeypatch):
+    small = dict(models.MODELS["kannada"], files={"model.safetensors": 1000, "checkpoints/vocab.txt": 10})
+    monkeypatch.setitem(models.MODELS, "kannada", small)  # its real size, without writing 1.4 GB
+    models.ensure(["kannada"])
+    urls = [request.full_url for request in requests[0]]
+    assert urls == [f"https://huggingface.co/ai4bharat/IndicF5/resolve/{models.MODELS['kannada']['repo'][1]}/{file}"
+                    for file in ("model.safetensors", "checkpoints/vocab.txt")]
+    assert all(request.unredirected_hdrs["Authorization"] == f"Bearer {KEY}" for request in requests[0])
+    assert (models.models_dir() / "IndicF5" / "checkpoints" / "vocab.txt").is_file()
 
 
 def test_a_key_hugging_face_doesnt_know_is_forgotten(key, requests):
@@ -106,7 +128,17 @@ def test_terms_not_accepted_names_both_pages_and_keeps_the_key(key, requests):
     message = str(refused.value)
     assert "https://huggingface.co/pyannote/segmentation-3.0" in message
     assert "https://huggingface.co/pyannote/speaker-diarization-3.1" in message
+    assert "IndicF5" not in message and 'say "set up speaker labels" again' in message
     assert key.exists() and KEY not in message
+
+
+def test_kannada_terms_not_accepted_name_only_its_page(key, requests):
+    requests[1]["code"] = 403
+    with pytest.raises(ToolError) as refused:
+        models.ensure(["kannada"])
+    message = str(refused.value)
+    assert "https://huggingface.co/ai4bharat/IndicF5" in message and "pyannote" not in message
+    assert 'say "set up the Kannada voice" again' in message and key.exists()
 
 
 def test_the_setup_says_one_line_for_the_three_speaker_files(monkeypatch, capsys):

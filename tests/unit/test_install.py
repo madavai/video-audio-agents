@@ -52,10 +52,10 @@ def ran(tmp_path, monkeypatch):
     return main
 
 
-@pytest.mark.parametrize("step", ["packages", "standard", "full", "gpu", "speakers", "browser", "serve"])
+@pytest.mark.parametrize("step", ["packages", "standard", "full", "gpu", "speakers", "indic", "browser", "serve"])
 def test_each_step_uses_the_environment_in_the_data_folder(step, tmp_path, ran):
     fake_setup(tmp_path)
-    (tmp_path / install.KEY_FILE).write_text("hf_saved_before")  # speakers: the key was given earlier
+    (tmp_path / install.KEY_FILE).write_text("hf_saved_before")  # speakers, indic: the key was given earlier
     for args, venv in ran(step):
         assert venv == str(tmp_path / "venv")
         assert args[0] == "the-uv-that-started-us"
@@ -88,7 +88,8 @@ def test_without_an_nvidia_card_there_is_nothing_to_install(tmp_path, monkeypatc
     assert install.options(tmp_path) == []
 
 
-def test_speaker_labels_ask_for_the_key_in_a_window_once(tmp_path, ran, monkeypatch):
+@pytest.mark.parametrize("step", ["speakers", "indic"])
+def test_the_gated_options_ask_for_the_key_in_a_window_once(step, tmp_path, ran, monkeypatch):
     asked = []
 
     def window(data):
@@ -97,18 +98,28 @@ def test_speaker_labels_ask_for_the_key_in_a_window_once(tmp_path, ran, monkeypa
         return True
 
     monkeypatch.setattr(install, "ask_key", window)
-    commands = [args[1:] for args, _ in ran("speakers")]
+    commands = [args[1:] for args, _ in ran(step)]
     assert asked == [tmp_path]
-    assert commands[0][-2:] == ["--extra", "speakers"]  # the packages, then the models (which need the key)
-    assert commands[1][-4:] == ["--warm", "speakers", "--data", str(tmp_path)]
-    ran("speakers")
+    assert commands[0][-2:] == ["--extra", step]  # the packages, then the models (which need the key)
+    assert commands[1][-4:] == ["--warm", step, "--data", str(tmp_path)]
+    ran(step)
     assert asked == [tmp_path]  # the key is kept: not asked again
 
 
-def test_closing_the_key_window_stops_the_setup(tmp_path, monkeypatch):
+def test_the_kannada_voice_reuses_the_key_of_speaker_labels(tmp_path, ran, monkeypatch):
+    """One Hugging Face key for both: a person who set up speaker labels isn't asked again, and both options stay."""
+    monkeypatch.setattr(install, "ask_key", lambda data: (data / install.KEY_FILE).write_text("hf_key") > 0)
+    ran("speakers")
+    monkeypatch.setattr(install, "ask_key", lambda data: pytest.fail("asked for the key again"))
+    assert ran("indic")[-2][0][-4:] == ["--extra", "speakers", "--extra", "indic"]
+    assert install.options(tmp_path) == ["speakers", "indic"]
+
+
+@pytest.mark.parametrize("step", ["speakers", "indic"])
+def test_closing_the_key_window_stops_the_setup(step, tmp_path, monkeypatch):
     monkeypatch.setattr(install, "ask_key", lambda data: False)
     with pytest.raises(SystemExit, match="closed without a key"):
-        install.prepare("speakers", tmp_path)
+        install.prepare(step, tmp_path)
     assert install.options(tmp_path) == []
 
 

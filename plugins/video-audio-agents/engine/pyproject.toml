@@ -32,6 +32,10 @@ speakers = ["pyannote.audio==3.4.0"]
 # NVIDIA's maths library, all faster-whisper needs to run transcripts on an NVIDIA graphics card (it brings its own
 # CUDA runtime). PyTorch stays the processor build: PyTorch 2.6 has no code for the newest cards (RTX 50).
 gpu = ["nvidia-cublas-cu12==12.9.2.10; sys_platform == 'win32' or sys_platform == 'linux'"]
+# Kannada spoken directly in a saved voice: AI4Bharat's IndicF5 runs on F5-TTS. 1.0.8 is the last F5-TTS that fits:
+# 1.1.0 to 1.1.9 cap pydantic below what mcp needs, and later ones need torchcodec. F5-TTS imports its trainer, which
+# imports datasets: without a floor uv picks a 2020 datasets, and pyarrow 26 refuses NumPy 1 (the voice models need it).
+indic = ["f5-tts==1.0.8", "datasets>=5", "pyarrow<26"]
 
 [project.scripts]
 video-audio-engine = "video_audio_engine.server:main"

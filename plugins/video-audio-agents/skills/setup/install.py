@@ -11,9 +11,10 @@ says what to do. Building the packages takes minutes, longer than Claude Code wa
 Code skips a plugin's server that failed for the next 15 minutes, so a failed start before the setup would leave the
 engine off after the restart the setup asks for.
 
-Two options are installed only on request: `gpu` (transcripts on an NVIDIA graphics card) and `speakers` (who said
-what). The data folder remembers them, so a later setup (after an update) keeps them instead of removing them.
-`speakers` needs the person's Hugging Face key: a small window asks for it, so it never passes through the chat.
+Three options are installed only on request: `gpu` (transcripts on an NVIDIA graphics card), `speakers` (who said
+what) and `indic` (Kannada spoken directly in a saved voice). The data folder remembers them, so a later setup (after
+an update) keeps them instead of removing them. `speakers` and `indic` need the person's Hugging Face key: a small
+window asks for it, so it never passes through the chat.
 """
 import json
 import os
@@ -23,7 +24,7 @@ import sys
 from pathlib import Path
 
 ENGINE = Path(__file__).resolve().parents[2] / "engine"
-OPTIONS = ("gpu", "speakers")
+OPTIONS = ("gpu", "speakers", "indic")
 KEY_FILE = "hugging-face-key.txt"  # the engine's models.py reads the same file
 
 
@@ -45,16 +46,16 @@ def uv_steps(step, data):
     packages = ["sync", *project, *[arg for option in options(data) for arg in ("--extra", option)]]
     if step == "packages":
         return [packages]
-    if step in ("standard", "full", "speakers"):  # speakers: its packages first, then its models (with the key)
+    if step in ("standard", "full", "speakers", "indic"):  # an option: its packages first, then its models (key)
         warm = [*engine, "--warm", step, "--data", str(data)]
-        return [packages, warm] if step == "speakers" else [warm]
+        return [packages, warm] if step in OPTIONS else [warm]
     if step == "gpu":
         return [packages, [*engine, "--check", "--data", str(data)]]
     if step == "browser":
         return [["run", *project, "playwright", "install", "chromium"]]
     if step == "serve":
         return [["run", *project, "--quiet", "video-audio-engine"]]
-    sys.exit(f"Unknown step {step!r}: use packages, standard, full, gpu, speakers, browser or serve.")
+    sys.exit(f"Unknown step {step!r}: use packages, standard, full, gpu, speakers, indic, browser or serve.")
 
 
 def ask_key(data):
@@ -98,10 +99,10 @@ def prepare(step, data):
     """What a step needs before its uv commands: the graphics card is there, the key is saved, the option noted."""
     if step == "gpu" and not shutil.which("nvidia-smi"):
         sys.exit("No NVIDIA graphics card was found on this computer, so there is nothing to install.")
-    if step == "speakers" and not (data / KEY_FILE).exists():
+    if step in ("speakers", "indic") and not (data / KEY_FILE).exists():
         print("A small window has opened: paste the Hugging Face key there and click Save.", flush=True)
         if not ask_key(data):
-            sys.exit("The window was closed without a key, so speaker labels weren't set up. Run this step again.")
+            sys.exit("The window was closed without a key, so nothing was set up. Run this step again.")
     if step in OPTIONS:
         options(data, add=step)
 

@@ -182,7 +182,7 @@ def test_faint_noise_after_the_words_is_trimmed():
     assert len(trimmed) / rate == pytest.approx(1.2, abs=0.1)  # the words, and a little either side
 
 
-def test_only_the_six_languages_and_the_right_model_for_each(monkeypatch):
+def test_only_the_six_languages_and_the_right_model_for_each(monkeypatch, tmp_path):
     with pytest.raises(ToolError, match="can't be spoken yet"):
         speech.check_language("German")
     used = []
@@ -202,11 +202,28 @@ def test_only_the_six_languages_and_the_right_model_for_each(monkeypatch):
     monkeypatch.setattr(speech, "load", lambda kind, report: used.append(kind) or Model())
     monkeypatch.setattr(speech, "reader_for", lambda language, sample: speech.READERS[language][0])
     monkeypatch.setattr(speech, "read_aloud", lambda text, reader, tmp: used.append(reader) or speechlike(1))
+    monkeypatch.setattr(voices, "sample", lambda voice, tmp: "sample.wav")
     report = progress.Job().report
     for language in ["English", "Hindi", "French", "Spanish", "Kannada", "Tamil"]:
-        speech.spoken(report, ["Hello."], language, "sample.wav", "Speaking")
+        route = speech.spoken(report, ["Hello."], language, "Me", tmp_path, "Speaking")[2]
+        assert route == ("reader" if language in ("Kannada", "Tamil") else "direct")
     assert used == ["english", None, "multilingual", "hi", "multilingual", "fr", "multilingual", "es",
                     "voice", "kn-IN-GaganNeural", None, "voice", "ta-IN-ValluvarNeural", None]
+
+    # The Kannada voice set up, and the sentence read for this voice: IndicF5 says Kannada. Tamil keeps the reader.
+    used.clear()
+    monkeypatch.setattr(speech.indic, "ready", lambda: True)
+    monkeypatch.setattr(voices, "kannada_reading", lambda voice: tmp_path / "Me.kannada.flac")
+    monkeypatch.setattr(speech.indic, "load", lambda report: used.append("kannada") or Model())
+    assert speech.spoken(report, ["ನಮಸ್ಕಾರ."], "Kannada", "Me", tmp_path, "Speaking")[2] == "direct"
+    assert speech.spoken(report, ["வணக்கம்."], "Tamil", "Me", tmp_path, "Speaking")[2] == "reader"
+    assert used == ["kannada", None, "voice", "ta-IN-ValluvarNeural", None]
+
+    # Set up, but this voice has no reading yet (saved before, or the speaker wasn't asked): the reader, as before.
+    used.clear()
+    monkeypatch.setattr(voices, "kannada_reading", lambda voice: None)
+    assert speech.spoken(report, ["ನಮಸ್ಕಾರ."], "Kannada", "Me", tmp_path, "Speaking")[2] == "reader"
+    assert used == ["voice", "kn-IN-GaganNeural", None]
 
 
 def test_no_voice_is_saved_without_consent(tmp_path):
@@ -218,8 +235,10 @@ def test_no_voice_is_saved_without_consent(tmp_path):
 
 
 def fake_microphone(monkeypatch, audio):
-    """sounddevice replaced: the "microphone" hears `audio`, then silence."""
+    """sounddevice replaced: the "microphone" hears `audio`, then silence. Returns it: .frames is how much was read."""
     class InputStream:
+        frames = 0
+
         def __init__(self, **kwargs):
             self.heard = np.concatenate([audio, np.zeros(120 * voices.RATE, np.float32)])
 
@@ -231,10 +250,12 @@ def fake_microphone(monkeypatch, audio):
 
         def read(self, frames):
             chunk, self.heard = self.heard[:frames], self.heard[frames:]
+            InputStream.frames += frames
             return chunk[:, None], False
 
     monkeypatch.setitem(sys.modules, "sounddevice", types.SimpleNamespace(InputStream=InputStream,
                                                                           PortAudioError=OSError))
+    return InputStream
 
 
 def test_recording_a_voice_starts_when_the_person_starts_speaking(monkeypatch):
@@ -269,6 +290,41 @@ def test_an_unknown_voice_names_the_saved_ones(monkeypatch):
     voices.record_voice(progress.Job(), "Anna", 20, True)
     with pytest.raises(ToolError, match='no saved voice called "Bob". The saved voices are: Anna.'):
         voices.voice_file("Bob")
+
+
+def test_the_kannada_sentence_is_kept_with_its_voice(monkeypatch):
+    """The person reads the sentence for a saved voice: kept beside it as <voice>.kannada.flac (not listed as a voice
+    of its own), named in kannada_readings; reading it again replaces it. Recording stops 2 s after the reading."""
+    fake_microphone(monkeypatch, speechlike(20, voices.RATE))
+    voices.record_voice(progress.Job(), "Anna", 20, True)
+    microphone = fake_microphone(monkeypatch, np.concatenate([np.zeros(voices.RATE, np.float32),
+                                                              speechlike(7, voices.RATE)]))
+    saved = voices.record_voice(progress.Job(), "Anna", 20, True, kannada_sentence=True)
+    assert saved["voice"] == "Anna" and saved["seconds"] == pytest.approx(7, abs=0.3)
+    assert saved["kannada_reading"] == str(voices.voices_dir() / "Anna.kannada.flac")
+    assert microphone.frames <= (1 + 7 + 2.4) * voices.RATE  # not the 20 seconds a voice gets
+    listed = voices.list_voices()
+    assert listed["voices"] == ["Anna"] and listed["kannada_readings"] == ["Anna"]
+    assert listed["kannada_sentence"] == voices.SENTENCE and voices.kannada_reading("Anna").suffix == ".flac"
+    fake_microphone(monkeypatch, speechlike(5, voices.RATE))
+    again = voices.record_voice(progress.Job(), "Anna", 20, True, kannada_sentence=True)
+    assert again["seconds"] == pytest.approx(5, abs=0.3)
+    assert sorted(p.name for p in voices.voices_dir().iterdir()) == ["Anna.kannada.flac", "Anna.wav"]
+
+
+def test_a_kannada_reading_needs_consent_a_saved_voice_and_the_sentence_alone(monkeypatch):
+    fake_microphone(monkeypatch, speechlike(7, voices.RATE))
+    with pytest.raises(ToolError, match='no saved voice called "Anna"'):
+        voices.record_voice(progress.Job(), "Anna", 20, True, kannada_sentence=True)
+    with pytest.raises(ToolError, match="own, or they agreed"):
+        voices.record_voice(progress.Job(), "Anna", 20, False, kannada_sentence=True)
+    fake_microphone(monkeypatch, speechlike(20, voices.RATE))
+    voices.record_voice(progress.Job(), "Anna", 20, True)
+    for seconds in (2, 18):  # a word or two, or more than the sentence
+        fake_microphone(monkeypatch, speechlike(seconds, voices.RATE))
+        with pytest.raises(ToolError, match=f"That reading is {seconds} seconds long"):
+            voices.record_voice(progress.Job(), "Anna", 20, True, kannada_sentence=True)
+    assert voices.kannada_reading("Anna") is None and voices.list_voices()["kannada_readings"] == []
 
 
 def test_one_big_model_in_memory_at_a_time(monkeypatch):

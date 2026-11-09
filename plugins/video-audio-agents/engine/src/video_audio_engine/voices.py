@@ -1,6 +1,8 @@
 """Saved voices: up to 30 seconds of a person's speech as Documents/VideoAudioAgents/voices/<name>.wav, saved only
 with their permission (uploaded or recorded). The voice models listen to 10 seconds, so each job uses the clearest
-10 seconds of the saved voice."""
+10 seconds of the saved voice.
+For Kannada in the voice itself (indic.py), a voice also keeps the person's reading of SENTENCE as
+<name>.kannada.flac: IndicF5 needs the exact words said in what it listens to."""
 import logging
 import subprocess
 import sys
@@ -21,6 +23,10 @@ MICROPHONE = ("System Settings, Privacy & Security, Microphone" if sys.platform 
               else "Windows Settings, Privacy, Microphone")
 CONSENT = ("A voice is only saved when it is the person's own, or they agreed to it being used. "
            "Ask them first, then try again with consent.")
+# Read aloud once by the person, for Kannada in their voice: "Hello! This is my voice. The weather is lovely today, so
+# let's go to the park this evening and walk for a while." About 6 to 9 seconds at a normal pace.
+SENTENCE = "ನಮಸ್ಕಾರ! ಇದು ನನ್ನ ಧ್ವನಿ. ಇಂದು ಹವಾಮಾನ ತುಂಬಾ ಚೆನ್ನಾಗಿದೆ, ಆದ್ದರಿಂದ ಸಂಜೆ ಉದ್ಯಾನವನಕ್ಕೆ ಹೋಗಿ ಸ್ವಲ್ಪ ಹೊತ್ತು ನಡೆಯೋಣ."
+READING = ".kannada.flac"  # beside the voice's .wav (a .flac, so it isn't listed as a voice of its own)
 
 
 def voices_dir() -> Path:
@@ -30,7 +36,15 @@ def voices_dir() -> Path:
 
 
 def list_voices() -> dict:
-    return {"voices": sorted(path.stem for path in voices_dir().glob("*.wav")), "folder": str(voices_dir())}
+    names = sorted(path.stem for path in voices_dir().glob("*.wav"))
+    return {"voices": names, "folder": str(voices_dir()), "kannada_sentence": SENTENCE,
+            "kannada_readings": [name for name in names if (voices_dir() / f"{name}{READING}").is_file()]}
+
+
+def kannada_reading(voice: str) -> Path | None:
+    """The voice's reading of SENTENCE, if the person has read it."""
+    path = voice_file(voice).with_name(f"{voice}{READING}")
+    return path if path.is_file() else None
 
 
 def voice_file(voice: str) -> Path:
@@ -42,22 +56,30 @@ def voice_file(voice: str) -> Path:
     return path
 
 
-def save_voice(job, source_file: str, name: str, consent: bool) -> dict:
-    """A voice from any audio or video file: the clearest 30 seconds of its first 10 minutes."""
+def save_voice(job, source_file: str, name: str, consent: bool, kannada_sentence: bool = False) -> dict:
+    """A voice from any audio or video file: the clearest 30 seconds of its first 10 minutes. With
+    kannada_sentence: the file is the person reading SENTENCE, kept with their saved voice `name`."""
     if not consent:
         raise ToolError(CONSENT)
     source = existing(source_file)
     job.report(0, "Reading the recording")
+    if kannada_sentence:
+        voice_file(name)  # an unknown voice is reported before anything is read
+        return keep_reading(read_audio(source, RATE, seconds=60), name)
     return keep(read_audio(source, RATE, seconds=600), name)
 
 
-def record_voice(job, name: str, seconds: int, consent: bool) -> dict:
+def record_voice(job, name: str, seconds: int, consent: bool, kannada_sentence: bool = False) -> dict:
     """Records the computer's default microphone: it waits (up to a minute) for the person to start speaking, then
-    records 10 to 30 seconds, so no words are lost while the request reaches the engine. Esc saves nothing."""
+    records 10 to 30 seconds, so no words are lost while the request reaches the engine. Esc saves nothing.
+    With kannada_sentence: the person reads SENTENCE for their saved voice `name`; it stops 2 seconds after they
+    stop speaking (at most 20 seconds)."""
     if not consent:
         raise ToolError(CONSENT)
+    if kannada_sentence:
+        voice_file(name)
     import sounddevice
-    seconds, step = min(max(int(seconds), SHORTEST), LONGEST), RATE // 5
+    seconds, step = (20 if kannada_sentence else min(max(int(seconds), SHORTEST), LONGEST)), RATE // 5
     chunks, waited = [], 0
     try:
         with sounddevice.InputStream(samplerate=RATE, channels=1, dtype="float32") as microphone:
@@ -71,12 +93,14 @@ def record_voice(job, name: str, seconds: int, consent: bool) -> dict:
                     job.report(0, "Listening: start speaking whenever you are ready")
                     continue
                 chunks.append(chunk)
+                if kannada_sentence and len(chunks) > 15 and max(np.abs(c).max() for c in chunks[-10:]) < 0.02:
+                    break  # 2 seconds of quiet after the reading
                 left = seconds - len(chunks) * step / RATE
                 job.report(100 - left / seconds * 100, f"Recording ({left:.0f} seconds left)")
     except sounddevice.PortAudioError as e:  # no microphone, or it is in use
         log.warning("Recording failed: %s", e)
         raise ToolError("The microphone couldn't be used. Check one is connected and not in use, then try again.") from e
-    return keep(np.concatenate(chunks), name)
+    return keep_reading(np.concatenate(chunks), name) if kannada_sentence else keep(np.concatenate(chunks), name)
 
 
 def keep(audio: np.ndarray, name: str) -> dict:
@@ -94,6 +118,26 @@ def keep(audio: np.ndarray, name: str) -> dict:
     path = paths.free_path(voices_dir(), name.strip() or "My voice", ".wav")
     soundfile.write(path, audio, RATE)
     return {"voice": path.stem, "sample_file": str(path), "seconds": round(len(audio) / RATE, 1)}
+
+
+def keep_reading(audio: np.ndarray, voice: str) -> dict:
+    """The person's reading of SENTENCE, without the silence around it, as <voice>.kannada.flac. A new reading
+    replaces the old one (the person read it again), like the voice's pronunciation list."""
+    import librosa
+    import soundfile
+    if audio.size == 0 or np.abs(audio).max() < 0.01:
+        raise ToolError("There is no sound in that recording. If it was recorded here, check the microphone is "
+                        f"switched on and allowed ({MICROPHONE}).")
+    audio = librosa.effects.trim(audio, top_db=35)[0]
+    seconds = len(audio) / RATE
+    if not 3 <= seconds <= 15:
+        raise ToolError(f"That reading is {seconds:.0f} seconds long, and the sentence takes about 6 to 9 seconds. "
+                        "Read just the sentence once, at a normal pace.")
+    path = voice_file(voice).with_name(f"{voice}{READING}")
+    part = path.with_name(path.name + ".part")
+    soundfile.write(part, audio, RATE, format="FLAC")
+    part.replace(path)
+    return {"voice": voice, "kannada_reading": str(path), "seconds": round(seconds, 1)}
 
 
 def sample(voice: str, folder) -> str:

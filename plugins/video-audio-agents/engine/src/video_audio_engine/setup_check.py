@@ -5,7 +5,7 @@ import shutil
 import sys
 from pathlib import Path
 
-from . import gpu, models, speakers
+from . import gpu, indic, models, speakers
 from .paths import data_dir, output_root
 
 GB = 1024**3
@@ -85,6 +85,7 @@ def check_setup() -> dict:
         "gpu": card,  # the NVIDIA card's name, or null
         "gpu_usable": usable,  # transcripts run on it (voice and speaker labels stay on the processor)
         "speaker_labels": speakers.ready(),
+        "kannada_voice": indic.ready(),  # Kannada spoken directly in a saved voice (setup option)
         "output_folder": str(output_root()),
         "notes": notes,
     }

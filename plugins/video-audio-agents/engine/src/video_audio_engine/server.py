@@ -27,8 +27,9 @@ mcp = MCPServer(
 def check_setup() -> str:
     """What is installed and what is missing: Python, ffmpeg, Deno, a browser for login pages, which models are
     downloaded and how many GB each missing one needs, free memory and disk, the NVIDIA graphics card (gpu: its
-    name or null; gpu_usable: transcripts run on it) and whether speaker labels are set up (speaker_labels). Fast;
-    downloads nothing. Call it once before heavy work."""
+    name or null; gpu_usable: transcripts run on it), whether speaker labels are set up (speaker_labels) and whether
+    Kannada can be spoken directly in a saved voice (kannada_voice). Fast; downloads nothing. Call it once before
+    heavy work."""
     return json.dumps(setup_check.check_setup())
 
 
@@ -217,7 +218,9 @@ async def export_podcast(audio_file: str, chapters: str, title: str, ctx: Contex
 
 @mcp.tool()
 def list_voices() -> str:
-    """The saved voices (names to pass as `voice`) and the folder they are in. Returns {voices, folder}."""
+    """The saved voices (names to pass as `voice`) and the folder they are in. Also the Kannada sentence a person
+    reads once for Kannada in their own voice (kannada_sentence; see save_voice) and the voices that have that reading
+    (kannada_readings). Returns {voices, folder, kannada_sentence, kannada_readings}."""
     try:
         return json.dumps(voices.list_voices())
     except Exception as e:
@@ -225,20 +228,26 @@ def list_voices() -> str:
 
 
 @mcp.tool()
-async def save_voice(source_file: str, name: str, consent: bool, ctx: Context) -> str:
+async def save_voice(source_file: str, name: str, consent: bool, ctx: Context,
+                     kannada_sentence: bool = False) -> str:
     """Saves a voice from an audio or video file of one person speaking: the clearest 30 seconds, without the
     silence around it, as Documents/VideoAudioAgents/voices/<name>.wav. Needs at least 10 seconds of speech.
     consent must be true: only after the person confirmed it is their own voice or they have the speaker's
-    permission. Never replaces a saved voice ("name (2)"). Returns {voice, sample_file, seconds}."""
-    return json.dumps(await progress.run(ctx, voices.save_voice, source_file, name, consent))
+    permission. Never replaces a saved voice ("name (2)"). Returns {voice, sample_file, seconds}.
+    kannada_sentence true: the file is the person reading list_voices' kannada_sentence once (3 to 15 seconds); it is
+    kept with their saved voice `name` (replacing an earlier reading), so speak and speak_timed can say Kannada
+    directly in that voice when check_setup says kannada_voice. Returns {voice, kannada_reading, seconds}."""
+    return json.dumps(await progress.run(ctx, voices.save_voice, source_file, name, consent, kannada_sentence))
 
 
 @mcp.tool()
-async def record_voice(name: str, consent: bool, ctx: Context, seconds: int = 20) -> str:
+async def record_voice(name: str, consent: bool, ctx: Context, seconds: int = 20,
+                       kannada_sentence: bool = False) -> str:
     """Records the computer's microphone and saves it as a voice, like save_voice. It waits up to a minute for the
     person to start speaking, then records `seconds` (10 to 30). consent must be true, as for save_voice.
-    Returns {voice, sample_file, seconds}."""
-    return json.dumps(await progress.run(ctx, voices.record_voice, name, seconds, consent))
+    Returns {voice, sample_file, seconds}. kannada_sentence true: records the person reading the Kannada sentence
+    for their saved voice `name`, as save_voice does with a file, and stops 2 seconds after they stop speaking."""
+    return json.dumps(await progress.run(ctx, voices.record_voice, name, seconds, consent, kannada_sentence))
 
 
 @mcp.tool()
@@ -247,10 +256,12 @@ async def speak(voice: str, language: Language, ctx: Context, text: str | None =
                 output_name: str | None = None, folder: str | None = None) -> str:
     """Reads text aloud in a saved voice, as an .mp3. Give `text`, or `transcript_file` (a transcript or any text
     file; "[12.5s]" times are not read). Saved as "<name> (<voice> voice).mp3" next to the file, or for text in
-    `folder` (if given) or Documents/VideoAudioAgents/Speech/, named after its first words (or output_name). English, Hindi, French and Spanish are spoken directly in the voice;
-    Kannada and Tamil are read by an online reader voice and then changed into it (a weaker match).
-    speed: little_slower (default, sounds most natural), slower, as_made. Slow: about 5 to 8 seconds of work per
-    second of speech. Returns {output_file, seconds}."""
+    `folder` (if given) or Documents/VideoAudioAgents/Speech/, named after its first words (or output_name).
+    English, Hindi, French and Spanish are spoken directly in the voice, and Kannada too when check_setup says
+    kannada_voice and the voice has its Kannada reading (list_voices: kannada_readings). Otherwise Kannada, and Tamil
+    always, are read by an online reader voice and then changed into it (a weaker match). route says which:
+    "direct" or "reader". speed: little_slower (default, sounds most natural), slower, as_made. Slow: about 5 to 8
+    seconds of work per second of speech. Returns {output_file, seconds, route}."""
     return json.dumps(await progress.run(ctx, speech.speak, voice, language, speed, text, transcript_file,
                                          output_name, folder))
 
@@ -264,8 +275,8 @@ async def speak_timed(segments_file: str, voice: str, language: Language, ctx: C
     (at most 1.15 times); one that still runs over delays the next line, which then catches up, and is listed in
     `overruns` ({at, over_by} in seconds); most_late is the most any line starts after its time, in seconds.
     language is the language of the lines. Saved as "<segments name> (<voice> voice).mp3"; then merge_audio_video
-    puts it under the video.
-    Returns {output_file, seconds, lines, most_late, overruns, overrun_count}."""
+    puts it under the video. route: "direct" or "reader", as for speak.
+    Returns {output_file, seconds, lines, most_late, overruns, overrun_count, route}."""
     return json.dumps(await progress.run(ctx, speech.speak_timed, segments_file, voice, language, speed))
 
 
@@ -313,7 +324,8 @@ def warm(mode: str) -> None:
     """Downloads ffmpeg and the models for the setup mode. Skips whatever is already there, so it is safe to re-run."""
     print("ffmpeg (the video tool): " + ("already here" if models.ffmpeg_present() else "downloading"), flush=True)
     models.ensure_ffmpeg(printer("ffmpeg"))
-    names = {"standard": models.STANDARD, "full": models.FULL, "speakers": models.SPEAKERS}[mode]
+    names = {"standard": models.STANDARD, "full": models.FULL, "speakers": models.SPEAKERS,
+             "indic": models.INDIC}[mode]
     groups = {}  # one line per label: speaker labels are three files
     for name in names:
         groups.setdefault(models.MODELS[name]["label"], []).append(name)
@@ -329,7 +341,7 @@ def warm(mode: str) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(prog="video-audio-engine", description="The Video Audio Agents engine.")
-    parser.add_argument("--warm", choices=["standard", "full", "speakers"],
+    parser.add_argument("--warm", choices=["standard", "full", "speakers", "indic"],
                         help="download ffmpeg and the models for this setup mode (or option), then exit")
     parser.add_argument("--check", action="store_true", help="print what is installed and missing, then exit")
     parser.add_argument("--data", help="the plugin's private data folder (the setup skill passes it)")

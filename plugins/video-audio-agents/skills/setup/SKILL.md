@@ -1,6 +1,6 @@
 ---
 name: setup
-description: Sets up Video Audio Agents on this computer (installs the engine and downloads its models). Use right after the plugin is installed or updated, or when the person says "set up video audio agents" (standard) or "set up video audio agents with voice" (full). Also use when check_setup reports something missing, and for the two options installed only on request - "set up the graphics card" (faster transcripts on an NVIDIA card) and "set up speaker labels" (who said what, with a free Hugging Face key).
+description: Sets up Video Audio Agents on this computer (installs the engine and downloads its models). Use right after the plugin is installed or updated, or when the person says "set up video audio agents" (standard) or "set up video audio agents with voice" (full). Also use when check_setup reports something missing, and for the three options installed only on request - "set up the graphics card" (faster transcripts on an NVIDIA card), "set up speaker labels" (who said what, with a free Hugging Face key) and "set up the Kannada voice" (Kannada spoken directly in a saved voice, with a free Hugging Face key).
 allowed-tools:
   - Bash(uv *)
   - Bash(~/.local/bin/uv *)
@@ -92,10 +92,42 @@ and suggest they delete that key on https://huggingface.co/settings/tokens and m
 
 Finish as in step 4 above: `speaker_labels` true in the JSON check, and a restart of Claude Code so the engine has it.
 
+## Kannada voice (only on request)
+
+"Set up the Kannada voice", "Kannada in my own voice", or check_setup's `kannada_voice` is false when they want it.
+Without it, Kannada is read by an online reader voice and then changed into the saved voice (a weaker match). With
+it, IndicF5, a speech model made by AI4Bharat at IIT Madras, speaks Kannada directly in the saved voice. It installs
+about 0.3 GB of packages and downloads the model (1.4 GB). Tamil isn't part of it: Tamil keeps the reader voice. Run
+the standard setup first.
+
+1. Before anything, tell them plainly, and ask "Go ahead?":
+   - IndicF5's makers publish it as free to use (the MIT licence), but they built it from another model, F5-TTS,
+     whose makers allow only non-commercial use. So it may be fine only for personal, non-commercial use: for videos
+     they earn money from, they should check the licence first (or ask a lawyer).
+   - Like all voice work here, it only copies a voice with the person's permission.
+2. The model is free but gated on Hugging Face: they need their own account, accept its terms, and need a key. One
+   key serves both this and speaker labels: if they saved one for speaker labels, they only accept the terms
+   (step 2 below), and no window opens. Tell them, as numbered steps, and wait until they say they're done:
+   1. Make a free account at https://huggingface.co/join (skip if they have one).
+   2. Logged in, open https://huggingface.co/ai4bharat/IndicF5 and accept its terms (it shares their name and email
+      with AI4Bharat; approval is instant).
+   3. Unless they saved a key for speaker labels: at https://huggingface.co/settings/tokens choose Create new token,
+      type "Read", any name, Create, and copy it. Say: "Don't paste the key here in the chat: a small window will
+      open for it."
+3. Run:
+   `uv run --no-project --python 3.11 "${CLAUDE_PLUGIN_ROOT}/skills/setup/install.py" indic "${CLAUDE_PLUGIN_DATA}"`
+   If no key was saved before, say a small window has opened (on a Mac, click into it first): paste the key there and
+   click Save. Then the packages install (a few minutes) and the model downloads.
+4. If it stops because Hugging Face refused, or the key is pasted in the chat, do as for speaker labels above.
+
+Finish as in step 4 above: `kannada_voice` true in the JSON check, and a restart of Claude Code. Then say: each saved
+voice needs one reading of a short Kannada sentence, once; the voice helper shows the sentence and records it
+("record the Kannada sentence for my voice"). Until a voice has it, its Kannada is still made with the reader voice.
+
 ## If something fails
 
 Say which step failed and why, in one sentence (for example "the internet connection dropped during the download"). Then: "Running the setup again continues where it stopped." The details are in `${CLAUDE_PLUGIN_DATA}/engine.log`. Do not try other install methods or edit any files.
 
 ## Updates
 
-"Update video audio agents": run `claude plugin marketplace update madavai`, then `claude plugin update video-audio-agents@madavai`, then this setup again (it only installs what changed, and keeps the graphics-card and speaker-label options if they were set up), then ask the person to restart Claude Code.
+"Update video audio agents": run `claude plugin marketplace update madavai`, then `claude plugin update video-audio-agents@madavai`, then this setup again (it only installs what changed, and keeps the graphics-card, speaker-label and Kannada voice options if they were set up), then ask the person to restart Claude Code.
