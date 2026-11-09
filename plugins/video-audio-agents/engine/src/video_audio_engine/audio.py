@@ -17,6 +17,7 @@ from .texts import existing
 TARGET = "I=-16:TP=-1.5:LRA=11"  # -16 LUFS, peaks at most -1.5 dB
 QUIET = "-45dB"  # quieter than this for half a second counts as silence
 KEEP = 0.3  # seconds of the silence kept before the first sound and after the last
+COUNT = "astats=measure_perchannel=none:measure_overall=Number_of_samples"  # the sound's length, as it is decoded
 PODCAST = "I=-16:TP=-1.5:LRA=20"  # a mix of speech and music has a wider range than speech alone
 STEREO = "aformat=sample_rates=44100:channel_layouts=stereo"  # what the mix is made in, whatever its files are
 
@@ -29,8 +30,14 @@ def clean_audio(job, file: str, loudness: bool = True, trim_silence: bool = True
         raise ToolError(f"{source.name} has no sound to clean.")
     video = has_picture(source)
     length = probe_seconds(source)
+    rate = probe(source, "-select_streams", "a:0", "-show_entries", "stream=sample_rate") or "48000"
     said, measured = measure(job, source, length, "Listening to the sound", end=50,
-                             before=f"silencedetect=noise={QUIET}:d=0.5,")
+                             before=f"silencedetect=noise={QUIET}:d=0.5,{COUNT},")
+    # The silence is found in the decoded sound, so its length is counted there too: a file's own length can be off
+    # by a tenth of a second (found with an mp3 made on a Mac), and then the silence at the end wasn't seen as running
+    # to the end, and was kept.
+    counted = re.findall(r"Number of samples: (\d+)", said)
+    length = int(counted[-1]) / int(rate) if counted else length
 
     first, last = 0.0, length
     if trim_silence and not video:  # cutting a video's sound would put its picture out of step
@@ -49,7 +56,6 @@ def clean_audio(job, file: str, loudness: bool = True, trim_silence: bool = True
     filters = [f"atrim={first:.3f}:{last:.3f},asetpts=PTS-STARTPTS"] if first > 0 or last < length else []
     if loudness:
         filters.append(normalise(measured))
-    rate = probe(source, "-select_streams", "a:0", "-show_entries", "stream=sample_rate") or "48000"
     filters.append(f"aresample={rate}")  # loudnorm works at 192 kHz
     if video:  # the picture is copied as it is
         output = paths.free_path(source.parent, f"{source.stem} (clean audio)", ".mp4")

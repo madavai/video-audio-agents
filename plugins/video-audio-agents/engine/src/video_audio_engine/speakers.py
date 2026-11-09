@@ -24,16 +24,16 @@ STEPS = {"segmentation": (5, 35, "Finding who speaks when"), "embeddings": (35, 
 
 
 @contextlib.contextmanager
-def printed_to_log():
-    """pyannote prints notes (a model made with an older version, fewer speakers found than asked for), and stdout
-    carries the MCP messages: they go to the log file instead."""
+def printed_to_log(library: str = "pyannote"):
+    """pyannote prints notes (a model made with an older version, fewer speakers found than asked for), so does
+    F5-TTS (indic.py), and stdout carries the MCP messages: they go to the log file instead."""
     said = io.StringIO()
     try:
         with contextlib.redirect_stdout(said):
             yield
     finally:
         if said.getvalue().strip():
-            log.info("pyannote: %s", said.getvalue().strip())
+            log.info("%s: %s", library, said.getvalue().strip())
 
 
 def ready() -> bool:

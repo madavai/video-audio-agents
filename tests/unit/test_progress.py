@@ -64,3 +64,13 @@ def test_an_unexpected_error_is_logged_and_explained(private_data):
     with pytest.raises(ToolError) as error:
         anyio.run(progress.run, FakeContext(), work)
     assert "division by zero" in str(error.value) and "engine.log" in str(error.value)
+
+
+def test_a_file_the_computer_refused_is_explained(private_data, monkeypatch):
+    """A Mac refuses the Documents folder until the person allows it: say where to allow it, not "went wrong"."""
+    refused = PermissionError(1, "Operation not permitted", "/Users/me/Documents/VideoAudioAgents")
+    monkeypatch.setattr(progress.sys, "platform", "darwin")
+    message = str(progress.plain_error(refused))
+    assert "didn't allow" in message and "VideoAudioAgents" in message and "Files and Folders" in message
+    monkeypatch.setattr(progress.sys, "platform", "win32")
+    assert "Close any program" in str(progress.plain_error(refused))

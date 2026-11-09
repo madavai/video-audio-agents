@@ -44,7 +44,8 @@ def test_engine_starts_lists_its_tools_and_answers_check_setup(private_data):
     assert not results[0].is_error
     check = json.loads(results[0].content[0].text)
     expected = {"ok", "python", "ffmpeg", "deno", "browser", "models_present", "models_missing_gb",
-                "free_ram_gb", "free_disk_gb", "gpu", "gpu_usable", "speaker_labels", "notes"}
+                "free_ram_gb", "free_disk_gb", "gpu", "gpu_usable", "speaker_labels", "kannada_voice",
+                "notes"}
     assert expected <= set(check)
     assert check["python"].startswith("3.11")
     assert check["models_present"] == []  # a fresh data folder has no models

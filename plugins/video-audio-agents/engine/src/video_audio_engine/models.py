@@ -77,11 +77,21 @@ MODELS = {
         "repo": ("pyannote/wespeaker-voxceleb-resnet34-LM", "837717ddb9ff5507820346191109dc79c958d614"),
         "files": {"pytorch_model.bin": 26645418},
     },
+    # Kannada in a saved voice: AI4Bharat's IndicF5, its voice model and vocoder in one file, and the letters it knows.
+    # Gated: the person accepts its terms on Hugging Face.
+    "kannada": {
+        "label": "Kannada speech in a saved voice",
+        "repo": ("ai4bharat/IndicF5", "fb652a96e508091045890dae5bb99fe511facbcf"),
+        "files": {"model.safetensors": 1402789408, "checkpoints/vocab.txt": 11283},
+    },
 }
 STANDARD = ["base", "small"]
 FULL = STANDARD + ["large-v3-turbo", "voice", "english", "multilingual", "music"]
 SPEAKERS = ["speaker-settings", "speaker-turns", "speaker-voices"]  # setup option "speakers", not part of full
-GATED = ["pyannote/speaker-diarization-3.1", "pyannote/segmentation-3.0"]  # downloaded with the person's key
+INDIC = ["kannada"]  # setup option "indic", not part of full
+# The gated models, downloaded with the person's key, and the setup that asks for it ('say "set up <this>"').
+GATED = {"pyannote/speaker-diarization-3.1": "speaker labels", "pyannote/segmentation-3.0": "speaker labels",
+         "ai4bharat/IndicF5": "the Kannada voice"}
 KEY_FILE = "hugging-face-key.txt"  # in the data folder, written by the setup skill's install.py (its key window)
 FFMPEG_GB = 0.1  # about; the exact size comes with the download
 # The one big model in memory, kept for the next job: {name: model}. Speech-to-text, the voice models and the music
@@ -159,7 +169,7 @@ def download(url: str, path: Path, size: int | None, report=None) -> None:
     gated = next((repo for repo in GATED if url.startswith(f"{HUGGING_FACE}/{repo}/")), None)
     if gated:
         # Unredirected: Hugging Face sends the file from another server, which must not receive the key.
-        request.add_unredirected_header("Authorization", f"Bearer {hugging_face_key()}")
+        request.add_unredirected_header("Authorization", f"Bearer {hugging_face_key(gated)}")
     try:
         with urllib.request.urlopen(request, timeout=60) as response:
             if have and response.status != 206:  # the server ignored the resume request: start again
@@ -184,25 +194,26 @@ def download(url: str, path: Path, size: int | None, report=None) -> None:
     os.replace(part, path)
 
 
-def hugging_face_key() -> str:
-    """The person's Hugging Face key, saved by the setup's key window. Sent only with the gated files' downloads."""
+def hugging_face_key(repo: str) -> str:
+    """The person's Hugging Face key, saved by the setup's key window (one key for every gated model). Sent only
+    with the gated files' downloads."""
     file = data_dir() / KEY_FILE
     if not file.exists():
-        raise ToolError('Speaker labels need a free Hugging Face key, entered once: say "set up speaker labels".')
+        raise ToolError(f'This needs a free Hugging Face key, entered once: say "set up {GATED[repo]}".')
     return file.read_text(encoding="utf-8").strip()
 
 
 def refused(repo: str, code: int) -> ToolError:
     """Hugging Face said no to the key: 401 is a key it doesn't know (removed here, so the setup asks again),
     403 a key whose account hasn't accepted the model's terms yet."""
+    setup = f"set up {GATED[repo]}"
     if code == 401:
         (data_dir() / KEY_FILE).unlink(missing_ok=True)
         return ToolError("Hugging Face didn't accept the saved key (mistyped, or deleted on the site). "
-                         'Say "set up speaker labels" to enter it again.')
-    pages = " and ".join(f"{HUGGING_FACE}/{gated}" for gated in GATED)
+                         f'Say "{setup}" to enter it again.')
+    pages = " and ".join(f"{HUGGING_FACE}/{gated}" for gated, feature in GATED.items() if feature == GATED[repo])
     return ToolError(f"Hugging Face won't share {repo} with this key yet. Logged in on huggingface.co, accept the "
-                     f'terms on {pages}, and check the key is of the "Read" type, then say "set up speaker labels" '
-                     "again.")
+                     f'terms on {pages}, and check the key is of the "Read" type, then say "{setup}" again.')
 
 
 def ffmpeg_dir() -> Path:

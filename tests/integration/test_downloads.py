@@ -78,7 +78,7 @@ def test_a_gated_model_from_elsewhere_never_gets_the_key(server, private_data, m
     VAA_MODELS_URL does) is fetched without it, even for a gated model."""
     private_data.mkdir(parents=True, exist_ok=True)
     (private_data / models.KEY_FILE).write_text("hf_secret_test_key", encoding="utf-8")
-    gated = dict(models.MODELS["test-model"], repo=(models.GATED[0], "0" * 40))
+    gated = dict(models.MODELS["test-model"], repo=(next(iter(models.GATED)), "0" * 40))
     monkeypatch.setitem(models.MODELS, "test-model", gated)
     models.ensure(["test-model"])
     assert models.is_present("test-model") and Server.keys == []

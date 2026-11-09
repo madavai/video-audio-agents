@@ -1,6 +1,7 @@
 """Runs a tool's slow work in a thread, passes its progress to Claude, stops it on Esc,
 and turns any failure into one plain sentence (the details go to the log file)."""
 import logging
+import sys
 import threading
 
 import anyio
@@ -69,5 +70,12 @@ def plain_error(error: BaseException) -> ToolError:
     """A ToolError (shown to the person) as is; anything unexpected is logged with its traceback."""
     if isinstance(error, ToolError):
         return error
+    if isinstance(error, PermissionError):  # on a Mac: the Documents folder not allowed yet, most often
+        log.warning("Not allowed", exc_info=error)
+        where = f" ({error.filename})" if error.filename else ""
+        what = ("On a Mac: System Settings, Privacy & Security, Files and Folders: allow the app Claude runs in "
+                "(Terminal or Claude) to use the Documents folder, then try again." if sys.platform == "darwin" else
+                "Close any program that has the file open, check the folder can be written to, then try again.")
+        return ToolError(f"The computer didn't allow a file to be opened or saved{where}. {what}")
     log.error("Unexpected error", exc_info=error)
     return ToolError(f"Something went wrong ({error}). The details are in {data_dir() / 'engine.log'}.")

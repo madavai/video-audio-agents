@@ -60,7 +60,8 @@ def test_the_music_fades_in_and_out_and_runs_the_whole_voice(copy_of, with_model
 def test_intro_and_outro_are_in_place_and_as_loud_as_the_voice(copy_of, with_models):
     result = mix(copy_of("bursts.wav"), copy_of("bed.mp3"), intro=copy_of("intro.mp3"), outro=copy_of("outro.mp3"))
     out = result["output_file"]
-    assert result["seconds"] == pytest.approx(19, abs=0.1) and clips.probe_seconds(out) == pytest.approx(19, abs=0.1)
+    # ffmpeg 7.0 (the Mac's) gives an mp3's length with its encoder's delay at the start: up to 0.08 s more.
+    assert result["seconds"] == pytest.approx(19, abs=0.15) and clips.probe_seconds(out) == pytest.approx(19, abs=0.15)
     assert loudest_tone(out, 0.2, 1.8) == 600 and loudest_tone(out, 17.2, 18.8) == 800  # intro first, outro last
     assert loudest_tone(out, 2 + 5.8, 2 + 6.8) == 400  # the voice follows the intro; its words are not covered
     assert tone_db(out, 0.2, 1.8, 600) == pytest.approx(tone_db(out, 2 + 5.8, 2 + 6.8, 400), abs=2)
@@ -142,8 +143,8 @@ def test_the_episode_has_its_tags_and_chapters_readable_back(copy_of, with_model
     result = export(quiet, chapters_file(quiet.parent), "My first episode: Hello, world", cover)
     out = result["output_file"]
     assert out == str(quiet.with_name("quiet (podcast).mp3"))
-    assert result["chapters"] == 3 and result["seconds"] == pytest.approx(18, abs=0.1)
-    assert clips.probe_seconds(out) == pytest.approx(18, abs=0.1)
+    assert result["chapters"] == 3 and result["seconds"] == pytest.approx(18, abs=0.15)  # as above, on a Mac
+    assert clips.probe_seconds(out) == pytest.approx(18, abs=0.15)
 
     tags = ID3(out)  # readable back with mutagen
     assert tags["TIT2"].text == ["My first episode: Hello, world"] and tags["TALB"].text == ["My first episode: Hello, world"]

@@ -3,7 +3,7 @@ import subprocess
 
 import pytest
 
-from video_audio_engine import gpu, setup_check, speakers
+from video_audio_engine import gpu, indic, models, setup_check, speakers
 
 CARD = "NVIDIA GeForce RTX 5090 Laptop GPU"
 
@@ -77,3 +77,11 @@ def test_without_the_option_the_libraries_arent_looked_for():
 def test_speaker_labels_arent_ready_in_the_standard_setup(private_data):
     assert speakers.ready() is False
     assert setup_check.check_setup()["speaker_labels"] is False
+
+
+def test_the_kannada_voice_isnt_ready_in_the_standard_setup(private_data):
+    """F5-TTS isn't installed (the tests' environment is the standard setup): a key alone doesn't make it ready."""
+    private_data.mkdir(parents=True, exist_ok=True)
+    (private_data / models.KEY_FILE).write_text("hf_saved_for_speaker_labels", encoding="utf-8")
+    assert indic.installed() is False and indic.ready() is False
+    assert setup_check.check_setup()["kannada_voice"] is False
