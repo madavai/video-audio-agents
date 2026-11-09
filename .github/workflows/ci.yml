@@ -32,8 +32,6 @@ jobs:
 
   mac-ffmpeg-facts:  # TEMPORARY, removed before merge: how the Mac's ffmpeg makes and reads mp3 files
     runs-on: macos-latest
-    env:
-      VAA_DATA: ${{ runner.temp }}/vaa
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v10.3.1
@@ -43,6 +41,8 @@ jobs:
       - run: uv sync --frozen --project plugins/video-audio-agents/engine
       - name: ffmpeg facts
         shell: bash
+        env:
+          VAA_DATA: ${{ runner.temp }}/vaa
         run: |
           uv run --frozen --project plugins/video-audio-agents/engine python - <<'EOF'
           import subprocess
