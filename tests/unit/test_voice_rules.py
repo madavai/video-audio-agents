@@ -205,7 +205,7 @@ def test_only_the_six_languages_and_the_right_model_for_each(monkeypatch, tmp_pa
     monkeypatch.setattr(voices, "sample", lambda voice, tmp: "sample.wav")
     report = progress.Job().report
     for language in ["English", "Hindi", "French", "Spanish", "Kannada", "Tamil"]:
-        route = speech.spoken(report, ["Hello."], language, "Me", tmp_path, "Speaking")[2]
+        route = speech.spoken(report, ["Hello."], language, "Me", tmp_path, "Speaking")[2]["route"]
         assert route == ("reader" if language in ("Kannada", "Tamil") else "direct")
     assert used == ["english", None, "multilingual", "hi", "multilingual", "fr", "multilingual", "es",
                     "voice", "kn-IN-GaganNeural", None, "voice", "ta-IN-ValluvarNeural", None]
@@ -215,14 +215,14 @@ def test_only_the_six_languages_and_the_right_model_for_each(monkeypatch, tmp_pa
     monkeypatch.setattr(speech.indic, "ready", lambda: True)
     monkeypatch.setattr(voices, "kannada_reading", lambda voice: tmp_path / "Me.kannada.flac")
     monkeypatch.setattr(speech.indic, "load", lambda report: used.append("kannada") or Model())
-    assert speech.spoken(report, ["ನಮಸ್ಕಾರ."], "Kannada", "Me", tmp_path, "Speaking")[2] == "direct"
-    assert speech.spoken(report, ["வணக்கம்."], "Tamil", "Me", tmp_path, "Speaking")[2] == "reader"
+    assert speech.spoken(report, ["ನಮಸ್ಕಾರ."], "Kannada", "Me", tmp_path, "Speaking")[2]["route"] == "direct"
+    assert speech.spoken(report, ["வணக்கம்."], "Tamil", "Me", tmp_path, "Speaking")[2]["route"] == "reader"
     assert used == ["kannada", None, "voice", "ta-IN-ValluvarNeural", None]
 
     # Set up, but this voice has no reading yet (saved before, or the speaker wasn't asked): the reader, as before.
     used.clear()
     monkeypatch.setattr(voices, "kannada_reading", lambda voice: None)
-    assert speech.spoken(report, ["ನಮಸ್ಕಾರ."], "Kannada", "Me", tmp_path, "Speaking")[2] == "reader"
+    assert speech.spoken(report, ["ನಮಸ್ಕಾರ."], "Kannada", "Me", tmp_path, "Speaking")[2]["route"] == "reader"
     assert used == ["voice", "kn-IN-GaganNeural", None]
 
 

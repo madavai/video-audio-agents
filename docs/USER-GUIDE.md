@@ -50,12 +50,13 @@ already there and continues a broken download.
 With the standard setup, the first accurate transcript downloads 1.5 GB more, and the first voice job downloads the
 voice models (1 to 3 GB each). Claude tells you the size and asks before it starts.
 
-Two options are added only if you ask for them, after the standard setup:
+Three options are added only if you ask for them, after the standard setup:
 
 | Option | Size | What it adds |
 |---|---|---|
 | "set up the graphics card" | about 0.6 GB (0.9 GB on disk) | transcripts on an NVIDIA graphics card, about 10 to 20 times faster ([more](#faster-transcripts-on-a-graphics-card)) |
 | "set up speaker labels" | about 1 GB | who said what in interviews and conversations; needs a free Hugging Face account ([more](#who-said-what)) |
+| "set up the Kannada voice" | about 1.7 GB | Kannada spoken directly in your saved voice; needs a free Hugging Face account, and may be for non-commercial use only ([more](#kannada-in-your-own-voice)) |
 
 Running the setup again later (after an update, for example) keeps the options you chose.
 
@@ -302,9 +303,10 @@ you start speaking and lasts 20 seconds. For the closest match: a quiet room, th
 you will mostly use. Voices are kept in `Documents/VideoAudioAgents/voices/` (one `.wav` per voice, at most 30
 seconds).
 
-**Languages:** English, Hindi, French and Spanish are spoken directly in the saved voice. Kannada and Tamil are
-first read by a Microsoft reader voice (this needs the internet) and then changed into the saved voice, so they
-sound less like it.
+**Languages:** English, Hindi, French and Spanish are spoken directly in the saved voice. Kannada is too, once you
+set up the Kannada voice ([below](#kannada-in-your-own-voice)). Tamil, and Kannada without that option, are first
+read by a Microsoft reader voice (this needs the internet) and then changed into the saved voice, so they sound less
+like it.
 
 **Speed:** the voice models talk a little fast, so speech is made "a little slower" by default. Say "slower" for
 learners, or "as made".
@@ -346,6 +348,46 @@ at most 4 hours, so dub or read at most about 40 minutes at a time (ask for a cl
 first voice job downloads the voice models (1 to 3 GB each) unless you set up "with voice".
 
 Speech made by the voice models carries an inaudible watermark that marks it as made by AI.
+
+### Kannada in your own voice
+
+> Set up the Kannada voice.
+>
+> Record the Kannada sentence for my voice.
+
+Without this option, Kannada is read by a Microsoft reader voice and then changed into your saved voice, which sounds
+only partly like you. With it, IndicF5, a speech model made by AI4Bharat at IIT Madras for Indian languages, speaks
+Kannada directly in your saved voice. Tamil isn't part of it: Tamil keeps the reader voice.
+
+**Before you set it up, two things to know:**
+- **The licence may not allow commercial use.** IndicF5's makers publish it as free to use (the MIT licence), but
+  they built it from another model, F5-TTS, whose makers allow only non-commercial use. So treat it as fine for
+  personal, non-commercial use only; for videos you earn money from, check the licence first (or ask a lawyer).
+- **Your name and email go to the model's makers.** IndicF5 is free but gated on Hugging Face: to download it, you
+  accept its terms on its page, and Hugging Face then shares your account's name and email with AI4Bharat.
+
+**Setting it up (once):** say "set up the Kannada voice". Claude tells you the two points above and asks before
+anything starts. You need your own free Hugging Face account:
+
+1. Make an account at https://huggingface.co/join (skip this if you have one).
+2. Logged in, open https://huggingface.co/ai4bharat/IndicF5 and accept its terms (approval is instant).
+3. If you haven't set up speaker labels: at https://huggingface.co/settings/tokens choose **Create new token**, the
+   type **Read**, any name, then **Create**, and copy the key (it starts with `hf_`). Claude opens a small window:
+   paste the key there and click **Save**, never into the chat. If you set up speaker labels before, the key you
+   saved then is used again and no window opens.
+
+It installs about 0.3 GB of programs and downloads the model (1.4 GB, once), then asks you to restart Claude Code.
+
+**Reading one sentence, once for each voice:** IndicF5 copies a voice from a recording and the exact words said in
+it, so each saved voice needs your reading of one short Kannada sentence. Claude shows it (it means "Hello! This is
+my voice. The weather is lovely today, so let's go to the park this evening and walk for a while.") and records you
+reading it once, at your normal pace; it stops by itself when you stop. A phone recording of you reading it works
+too. Read it again any time to replace it. A voice saved before you set this up gets asked for the sentence the
+first time you want Kannada in it; until then, or for a voice whose speaker you can't ask, Kannada keeps the reader
+voice. The reading is kept beside the voice as `<voice>.kannada.flac`.
+
+**If the model can't be downloaded** (its terms weren't accepted, the key was refused, or the internet dropped), your
+Kannada is still made, with the reader voice, and Claude says why in one sentence.
 
 ### Narration, music and podcast files
 
@@ -435,14 +477,18 @@ for a Shorts package; if the Shorts already exist, only the publisher runs.
 ## What stays on your computer
 
 - Downloading, transcribing, subtitles, clips and voice work all run on your computer.
-- The internet is used to download from the links you give, for the setup's downloads, and for the Kannada and Tamil
-  reader voices (the text to be read goes to Microsoft's free reader service).
+- The internet is used to download from the links you give, for the setup's downloads, and for the Tamil and Kannada
+  reader voices (the text to be read goes to Microsoft's free reader service). Kannada made by the Kannada voice
+  option stays on your computer.
 - Translations, notes and posts are written by Claude, so the transcript's text goes to Claude like anything else
   you share in the chat.
 - Logins to course sites are kept in a private browser profile in the plugin's data folder; they are never shown or
   shared.
-- Your Hugging Face key (only if you set up speaker labels) is kept in the plugin's data folder too. It is sent only
-  to Hugging Face, to download the two speaker models, and never shown in the chat, the log or any file Claude makes.
+- Your Hugging Face key (only if you set up speaker labels or the Kannada voice) is kept in the plugin's data folder
+  too. It is sent only to Hugging Face, to download those models, and never shown in the chat, the log or any file
+  Claude makes.
+- Setting up the Kannada voice shares your Hugging Face account's name and email with AI4Bharat, the makers of
+  IndicF5, because its download page asks for them. Nothing else about you or your files is sent.
 
 ## Updating
 
@@ -455,7 +501,8 @@ madavai.
 
 Say "uninstall video audio agents". Claude removes the plugin and its data folder (the engine, the models, your
 browser logins and your Hugging Face key, up to 12 GB). Everything you made, in `Documents/VideoAudioAgents/`, stays.
-If you set up speaker labels, you can also delete the key on https://huggingface.co/settings/tokens.
+If you set up speaker labels or the Kannada voice, you can also delete the key on
+https://huggingface.co/settings/tokens.
 
 ## Limits
 
@@ -464,7 +511,8 @@ If you set up speaker labels, you can also delete the key on https://huggingface
 - Only transcripts use the graphics card, and only an NVIDIA one; voice work and speaker labels run on the processor.
 - Copy-protected services (Netflix and similar) are not supported.
 - You are responsible for following the terms of the sites you download from.
-- Still to come: Kannada and Tamil spoken directly in the saved voice.
+- Tamil is read by a reader voice and then changed into the saved voice, so it sounds less like you. Kannada
+  spoken directly in the saved voice needs the Kannada voice option, whose model may be for non-commercial use only.
 
 ## Troubleshooting
 
@@ -492,6 +540,12 @@ If you set up speaker labels, you can also delete the key on https://huggingface
   needs reading access to public gated models; a "Read" key has it.
 - **Speaker labels: "didn't accept the saved key":** the key was mistyped or deleted on the site. Say "set up speaker
   labels" and paste a new one in the window.
+- **Kannada: "made with the reader voice, because the Kannada voice model couldn't be downloaded":** your Kannada
+  was still made. To get your own voice: log in on huggingface.co, accept the terms on
+  https://huggingface.co/ai4bharat/IndicF5, then say "set up the Kannada voice" again (for a refused key, it asks for
+  a new one).
+- **Kannada sounds like the reader voice, not like you:** check the Kannada voice is set up, and that this voice has
+  its reading of the Kannada sentence ("record the Kannada sentence for my voice").
 - **Two people get the same label, or one person two:** say how many people speak ("label the two speakers"); very
   similar voices, or someone heard only for a word or two, can still be mixed up.
 - **"The graphics card couldn't be used this time":** the transcript was made on the processor instead. Close other

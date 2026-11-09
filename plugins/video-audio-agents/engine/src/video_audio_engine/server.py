@@ -260,8 +260,9 @@ async def speak(voice: str, language: Language, ctx: Context, text: str | None =
     English, Hindi, French and Spanish are spoken directly in the voice, and Kannada too when check_setup says
     kannada_voice and the voice has its Kannada reading (list_voices: kannada_readings). Otherwise Kannada, and Tamil
     always, are read by an online reader voice and then changed into it (a weaker match). route says which:
-    "direct" or "reader". speed: little_slower (default, sounds most natural), slower, as_made. Slow: about 5 to 8
-    seconds of work per second of speech. Returns {output_file, seconds, route}."""
+    "direct" or "reader"; a note (one plain sentence to pass on) says why Kannada used the reader voice when the
+    Kannada voice model couldn't be downloaded. speed: little_slower (default, sounds most natural), slower, as_made.
+    Slow: about 5 to 8 seconds of work per second of speech. Returns {output_file, seconds, route, note?}."""
     return json.dumps(await progress.run(ctx, speech.speak, voice, language, speed, text, transcript_file,
                                          output_name, folder))
 
@@ -275,8 +276,8 @@ async def speak_timed(segments_file: str, voice: str, language: Language, ctx: C
     (at most 1.15 times); one that still runs over delays the next line, which then catches up, and is listed in
     `overruns` ({at, over_by} in seconds); most_late is the most any line starts after its time, in seconds.
     language is the language of the lines. Saved as "<segments name> (<voice> voice).mp3"; then merge_audio_video
-    puts it under the video. route: "direct" or "reader", as for speak.
-    Returns {output_file, seconds, lines, most_late, overruns, overrun_count, route}."""
+    puts it under the video. route: "direct" or "reader", and a note, as for speak.
+    Returns {output_file, seconds, lines, most_late, overruns, overrun_count, route, note?}."""
     return json.dumps(await progress.run(ctx, speech.speak_timed, segments_file, voice, language, speed))
 
 

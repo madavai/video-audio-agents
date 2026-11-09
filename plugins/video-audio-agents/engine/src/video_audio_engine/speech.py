@@ -52,13 +52,13 @@ def speak(job, voice: str, language: str, speed: str = "little_slower", text: st
     if not words:
         raise ToolError("There are no words to read aloud. Give the text, or the path of a transcript.")
     with models.one_at_a_time(job), tempfile.TemporaryDirectory() as tmp:
-        lines, rate, route = spoken(job.report, text_pieces(respell(words)), language, voice, tmp,
-                                    f"Speaking in the {in_voice(voice)}")
+        lines, rate, how = spoken(job.report, text_pieces(respell(words)), language, voice, tmp,
+                                  f"Speaking in the {in_voice(voice)}")
     gap = np.zeros(int(PAUSE * rate), np.float32)
     audio = np.concatenate([piece for line in lines for piece in (line, gap)])
     folder.mkdir(parents=True, exist_ok=True)
     output = paths.free_path(folder, f"{output_name or name} ({in_voice(voice)})", ".mp3")
-    return {"output_file": str(output), "seconds": save_mp3(audio, rate, output, SPEEDS[speed]), "route": route}
+    return {"output_file": str(output), "seconds": save_mp3(audio, rate, output, SPEEDS[speed]), **how}
 
 
 def speak_timed(job, segments_file: str, voice: str, language: str, speed: str = "little_slower") -> dict:
@@ -76,8 +76,8 @@ def speak_timed(job, segments_file: str, voice: str, language: str, speed: str =
         raise ToolError(f"{source.name} has no lines to speak.")
     count, segments = len(segments), joined(segments)
     with models.one_at_a_time(job), tempfile.TemporaryDirectory() as tmp:
-        lines, rate, route = spoken(part(job.report, 0, 95), [respell(plain_text(s["text"])) for s in segments],
-                                    language, voice, tmp, f"Dubbing in the {in_voice(voice)}")
+        lines, rate, how = spoken(part(job.report, 0, 95), [respell(plain_text(s["text"])) for s in segments],
+                                  language, voice, tmp, f"Dubbing in the {in_voice(voice)}")
     timing, overruns = place(segments, [len(line) / rate for line in lines], SPEEDS[speed])
     job.report(95, "Putting each line at its time")
     lines = [tempo(line, rate, line_tempo) for line, (line_tempo, _) in zip(lines, timing)]
@@ -88,8 +88,7 @@ def speak_timed(job, segments_file: str, voice: str, language: str, speed: str =
     output = paths.free_path(source.parent, f"{base} ({in_voice(voice)})", ".mp3")
     most_late = max(at - float(segment["start"]) for segment, (_, at) in zip(segments, timing))
     return {"output_file": str(output), "seconds": save_mp3(track, rate, output), "lines": count,
-            "most_late": round(most_late, 1), "overruns": overruns[:20], "overrun_count": len(overruns),
-            "route": route}
+            "most_late": round(most_late, 1), "overruns": overruns[:20], "overrun_count": len(overruns), **how}
 
 
 def change_voice(job, file: str, voice: str, speed: str = "as_made") -> dict:
@@ -183,14 +182,23 @@ def load(kind: str, report):
     return models.loaded[kind]
 
 
-def spoken(report, texts: list, language: str, voice: str, tmp, label: str) -> tuple[list, int, str]:
+def spoken(report, texts: list, language: str, voice: str, tmp, label: str) -> tuple[list, int, dict]:
     """Each text spoken in the saved voice, as its own audio without the silence around it. Returns the pieces, their
-    sample rate and the route: "direct" (a voice model speaks in the voice) or "reader" (an online reader voice reads
-    it, then it is changed into the voice)."""
+    sample rate and how they were made: {"route": "direct"} (a voice model speaks in the voice) or {"route":
+    "reader"} (an online reader voice reads it, then it is changed into the voice), with a "note" when Kannada was
+    meant to be direct but IndicF5 couldn't be downloaded (Hugging Face refused the key, or the connection failed):
+    the Kannada is still made, with the reader voice."""
     sample = voices.sample(voice, tmp)  # an unknown voice is reported before a model loads
     reading = voices.kannada_reading(voice) if language == "Kannada" and indic.ready() else None
+    how = {"route": "direct" if reading or language in CLONED else "reader"}
     if reading:
-        model = indic.load(report)
+        try:
+            model = indic.load(report)
+        except (ToolError, ConnectionError) as e:
+            log.warning("The Kannada voice model couldn't be used: %s", e)
+            reading, how = None, {"route": "reader", "note": "This Kannada was made with the reader voice, because "
+                                  f"the Kannada voice model couldn't be downloaded. {e}"}
+    if reading:
         model.prepare_conditionals(reading)
     elif language in CLONED:
         model = load("english" if language == "English" else "multilingual", report)
@@ -208,7 +216,7 @@ def spoken(report, texts: list, language: str, voice: str, tmp, label: str) -> t
         else:
             lines.append(trimmed(convert(model, read_aloud(text, reader, tmp), 16000, tmp), model.sr))
     report(100, f"{label}: done")
-    return lines, model.sr, "direct" if reading or language in CLONED else "reader"
+    return lines, model.sr, how
 
 
 def said(model, text: str, language: str) -> np.ndarray:

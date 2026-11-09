@@ -37,6 +37,7 @@ Kannada and Tamil: the result's `route` says how it was made. "reader": read by 
 - check_setup's `kannada_voice` true and the voice in `kannada_readings`: spoken directly in the voice (route "direct").
 - `kannada_voice` true but no reading for this voice yet (a voice saved earlier): before speaking, offer the Kannada sentence (above); it takes a few seconds and makes the match closer. If they'd rather not, or the voice is someone they can't ask, go ahead with the reader voice.
 - `kannada_voice` false: the reader voice. Mention once that "set up the Kannada voice" makes Kannada sound closer to the saved voice, and that the model it uses may be licensed for personal, non-commercial use only.
+- A result with a `note` (the Kannada voice model couldn't be downloaded, for example its terms aren't accepted on Hugging Face): the Kannada was still made, with the reader voice. Pass the note on in one plain sentence, with the file.
 
 ## Dubbing
 Needs the video (.mp4) and its translated segments file, named like `Lesson (Hindi dubbing).segments.json` (the translator makes it with translated_segments, worded short enough that every line can be said in its time). If either is missing, say the transcriber (video and a timestamped transcript) and the translator (the translated segments file) make them first, and stop.

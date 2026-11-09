@@ -84,25 +84,28 @@ Say "update video audio agents". Or turn on auto-update: `/plugin` → Marketpla
 
 ## Limits
 
-- Runs on your computer: Windows, and Apple Silicon Macs with macOS 14 or later (Intel Macs aren't supported). Not
-  available in claude.ai in a browser or on phones.
+- Runs on your computer: Windows, and Apple Silicon Macs with macOS 14 or later (Intel Macs aren't supported; the
+  Mac is checked by tests but not yet tried on a real Mac). Not available in claude.ai in a browser or on phones.
 - Voice work needs about 6 GB of free memory and is slow on an ordinary computer (5 to 8 seconds of work per second
-  of speech). English, Hindi, French and Spanish are spoken directly in the saved voice; Kannada and Tamil are read
-  by an online reader voice first, so they match it less closely.
+  of speech). English, Hindi, French and Spanish are spoken directly in the saved voice, and Kannada too with the
+  Kannada voice option (whose model may be for non-commercial use only); Tamil, and Kannada without that option, are
+  read by an online reader voice first, so they match it less closely.
 - Copy-protected services (Netflix and similar) are not supported.
 - You are responsible for following the terms of the sites you download from. The voice helper only saves a voice
   that is yours or that you have permission to use.
 - The helpers never post anything anywhere: posts are drafts for you to review.
 - Only transcripts use a graphics card (NVIDIA); voice work and speaker labels run on the processor.
-- Still to come: Kannada and Tamil spoken directly in the saved voice, and Mac.
+- Still to come: a first try on a real Mac.
 
 ## Status
 
-Version 1.4: Wave 1 of the [build plan](docs/BUILD-PLAN.md) is complete, and Wave 2 has begun with whole
-playlists and channels, search across transcripts and audio clean-up, then Shorts from a video's best moments, a
-week's content calendar, quote cards, bilingual and simpler translations, narration with your own music and
-podcast-ready files with chapters, and now who said what and faster transcripts on a graphics card. See the [changelog](CHANGELOG.md) for
-what changed, and [ADR 0001](docs/adr/0001-python-engine-as-plugin.md) for why it is built this way.
+Version 1.5: Wave 1 of the [build plan](docs/BUILD-PLAN.md) is complete, and so is Wave 2, except a first try on a
+real Mac and the avatars for Madav's Agent Studio: whole playlists and channels, search across transcripts and audio
+clean-up, Shorts from a video's best moments, a week's content calendar, quote cards, bilingual and simpler
+translations, narration with your own music and podcast-ready files with chapters, who said what, faster transcripts
+on a graphics card, Kannada spoken directly in your saved voice, and Apple Silicon Macs. See the
+[changelog](CHANGELOG.md) for what changed, and [ADR 0001](docs/adr/0001-python-engine-as-plugin.md) for why it is
+built this way.
 
 ## Licence
 

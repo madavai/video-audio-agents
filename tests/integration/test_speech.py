@@ -193,6 +193,27 @@ def test_kannada_is_spoken_directly_once_the_sentence_is_read(stand_in, voice, c
     assert model.texts == [text]
 
 
+def test_kannada_falls_back_to_the_reader_voice_when_the_model_is_refused(stand_in, voice, copy_of, monkeypatch):
+    """Hugging Face refused the key (terms not accepted) or the download failed: the Kannada is still made, with the
+    reader voice, and one plain note says why. Nothing else breaks."""
+    def refused(report):
+        raise models.refused("ai4bharat/IndicF5", 403)
+
+    def dropped(report):
+        raise ConnectionError("The download of model.safetensors stopped early.")
+
+    monkeypatch.setattr(speech.indic, "ready", lambda: True)
+    monkeypatch.setattr(speech.indic, "load", refused)
+    run(voices.save_voice, str(copy_of("talk.mp3")), "Test", True, True)
+    result = run(speech.speak, "Test", "Kannada", "as_made", voices.SENTENCE)
+    assert result["route"] == "reader" and stand_in.texts == [] and result["seconds"] > 5
+    assert result["note"].startswith("This Kannada was made with the reader voice, because the Kannada voice model "
+                                     "couldn't be downloaded.")
+    assert "https://huggingface.co/ai4bharat/IndicF5" in result["note"]
+    monkeypatch.setattr(speech.indic, "load", dropped)
+    assert run(speech.speak, "Test", "Kannada", "as_made", voices.SENTENCE)["route"] == "reader"
+
+
 def test_dubbing_puts_every_line_at_its_time(stand_in, voice, tmp_path):
     segments = [{"start": 0.0, "end": 0.4, "text": "…"},  # no words (music, sound effects): stays silent
                 {"start": 0.5, "end": 2.0, "text": "a" * 39 + "."},  # 2.0 s spoken, 2.5 s until the next: slowed to 0.9
