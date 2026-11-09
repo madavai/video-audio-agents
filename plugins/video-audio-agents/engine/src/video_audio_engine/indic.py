@@ -18,6 +18,7 @@ from .speakers import printed_to_log
 
 RATE = 24000
 LONGEST = 22  # seconds F5 makes at once, the reading included; a longer text is made in parts
+STEPS = 32  # F5's steps from noise to speech for each take (its default)
 
 
 def installed() -> bool:
@@ -41,8 +42,10 @@ class Speaker:
         self.model, self.vocoder, self.voice = model, vocoder, None
 
     def prepare_conditionals(self, reading) -> None:
+        """At an even volume, as voices.sample does: F5 makes speech as loud as what it listens to."""
         import torch
-        self.voice = torch.from_numpy(voices.read_audio(reading, RATE)).unsqueeze(0)
+        audio = voices.read_audio(reading, RATE)
+        self.voice = torch.from_numpy(audio / (float(np.abs(audio).max()) or 1.0) * 0.9).unsqueeze(0)
 
     def generate(self, text: str):
         import torch
@@ -54,7 +57,7 @@ class Speaker:
         with printed_to_log("IndicF5"):
             for piece in chunk_text(text, max_chars=fits):
                 wave, _, _ = next(infer_batch_process((self.voice, RATE), voices.SENTENCE, [piece], self.model,
-                                                      self.vocoder, progress=None, device="cpu"))
+                                                      self.vocoder, nfe_step=STEPS, progress=None, device="cpu"))
                 waves.append(wave)
         return torch.from_numpy(np.concatenate(waves).astype(np.float32)).unsqueeze(0)
 
