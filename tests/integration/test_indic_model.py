@@ -51,7 +51,19 @@ def likeness(a, b):
 
 def test_kannada_is_spoken_directly_in_the_saved_voice(kannada_voice, capsys, monkeypatch):
     monkeypatch.setattr(indic, "ready", lambda: True)  # the key isn't needed: the files are here
-    result = run(speech.speak, "Sapna", "Kannada", "as_made", TEXT)
+    stopped, last = progress.Job(), []
+
+    def esc_in_the_take(percent, message):  # Esc once IndicF5 has started on the take
+        last[:] = [percent, message]
+        if message.startswith("Speaking") and percent > 0:
+            stopped.stop.set()
+        stopped.check()
+
+    monkeypatch.setattr(stopped, "report", esc_in_the_take)
+    with pytest.raises(progress.Stopped):
+        speech.speak(stopped, "Sapna", "Kannada", "as_made", voices.SENTENCE)
+    assert 0 < last[0] < 100, last  # it stopped part-way through the take, not after it
+    result = run(speech.speak, "Sapna", "Kannada", "as_made", TEXT)  # the next take is right: nothing kept from it
     assert result["route"] == "direct"
     assert 0.6 < result["seconds"] / (len(TEXT) / speech.PACE["Kannada"]) < 1.6  # its words, not a babble or a cut
     assert capsys.readouterr().out == ""  # F5-TTS's notes went to the log: stdout carries the MCP messages

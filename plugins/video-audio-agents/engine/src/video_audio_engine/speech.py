@@ -208,9 +208,11 @@ def spoken(report, texts: list, language: str, voice: str, tmp, label: str) -> t
         model.set_target_voice(sample)
     lines, started = [], time.monotonic()
     for i, text in enumerate(texts):
-        report(i / len(texts) * 100, f"{label}: {i + 1} of {len(texts)}{time_left(started, i, len(texts))}")
+        message = f"{label}: {i + 1} of {len(texts)}{time_left(started, i, len(texts))}"
+        report(i / len(texts) * 100, message)
         if reading:  # IndicF5 makes each take as long as its words need at the reading's pace: no tail to cut
-            lines.append(trimmed(model.generate(text).squeeze(0).numpy(), model.sr))
+            audio = model.generate(text, lambda share: report((i + share) / len(texts) * 100, message))
+            lines.append(trimmed(audio.squeeze(0).numpy(), model.sr))
         elif language in CLONED:
             lines.append(said(model, text, language))
         else:

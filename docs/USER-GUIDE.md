@@ -344,7 +344,8 @@ What you get:
 **It is slow:** about 5 to 8 seconds of work per second of speech on an ordinary computer, plus about as long as
 the video plays to keep a dub's music (dubbing a 2-minute clip takes about 12 to 17 minutes), and it needs about 6 GB
 of free memory. Esc stops it at any time. One job can run for
-at most 4 hours, so dub or read at most about 40 minutes at a time (ask for a clip of a longer video first). The
+at most 4 hours, so dub or read at most about 40 minutes at a time (ask for a clip of a longer video first).
+Kannada in your own voice is slower still ([below](#kannada-in-your-own-voice)). The
 first voice job downloads the voice models (1 to 3 GB each) unless you set up "with voice".
 
 Speech made by the voice models carries an inaudible watermark that marks it as made by AI.
@@ -385,6 +386,12 @@ reading it once, at your normal pace; it stops by itself when you stop. A phone 
 too. Read it again any time to replace it. A voice saved before you set this up gets asked for the sentence the
 first time you want Kannada in it; until then, or for a voice whose speaker you can't ask, Kannada keeps the reader
 voice. The reading is kept beside the voice as `<voice>.kannada.flac`.
+
+**It is slower than the other languages:** about 9 to 10 seconds of work for each second of Kannada speech on the
+computer it was tried on (24 processor threads), and longer on a computer with fewer. A one-minute reading takes
+about 10 minutes, a 10-minute reading about an hour and a half, and dubbing a 2-minute clip into Kannada about 20
+minutes. Claude says how long before it starts. The progress moves slowly, but it is working, and Esc stops it at any
+time. One job can run for at most 4 hours, so read or dub at most about 20 minutes of Kannada at a time.
 
 **If the model can't be downloaded** (its terms weren't accepted, the key was refused, or the internet dropped), your
 Kannada is still made, with the reader voice, and Claude says why in one sentence.

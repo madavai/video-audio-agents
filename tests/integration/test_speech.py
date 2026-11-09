@@ -175,6 +175,10 @@ class IndicStandIn(StandIn):
     def prepare_conditionals(self, reading):
         self.reading = Path(reading).name
 
+    def generate(self, text, done):
+        done(0.5)  # as at each of IndicF5's steps
+        return super().generate(text)
+
 
 def test_kannada_is_spoken_directly_once_the_sentence_is_read(stand_in, voice, copy_of, monkeypatch):
     """With the Kannada voice set up (IndicF5 stood in for), a voice's reading of the sentence, given as a file, makes
@@ -212,6 +216,26 @@ def test_kannada_falls_back_to_the_reader_voice_when_the_model_is_refused(stand_
     assert "https://huggingface.co/ai4bharat/IndicF5" in result["note"]
     monkeypatch.setattr(speech.indic, "load", dropped)
     assert run(speech.speak, "Test", "Kannada", "as_made", voices.SENTENCE)["route"] == "reader"
+
+
+def test_esc_stops_a_direct_kannada_take_part_way(stand_in, voice, copy_of, monkeypatch):
+    """One IndicF5 take runs for minutes: Esc is passed in at its steps, so it stops part-way and saves nothing."""
+    model, job = IndicStandIn(), progress.Job()
+    monkeypatch.setattr(speech.indic, "ready", lambda: True)
+    monkeypatch.setattr(speech.indic, "load", lambda report: model)
+    run(voices.save_voice, str(copy_of("talk.mp3")), "Test", True, True)
+    reports = []
+
+    def esc_in_the_take(percent, message):
+        reports.append(percent)
+        if percent > 0:  # half-way through the take (the stand-in's step)
+            job.stop.set()
+        job.check()
+
+    monkeypatch.setattr(job, "report", esc_in_the_take)
+    with pytest.raises(progress.Stopped):
+        speech.speak(job, "Test", "Kannada", "as_made", voices.SENTENCE)
+    assert reports == [0, 50] and model.texts == [] and not (paths.output_root() / "Speech").exists()
 
 
 def test_dubbing_puts_every_line_at_its_time(stand_in, voice, tmp_path):

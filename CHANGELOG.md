@@ -2,6 +2,107 @@
 
 The version goes up with every change people should receive: a phase adds one to the middle number, a fix to the last. 1.0.0 is the release, after Phase 7.
 
+## 1.5.0
+
+Phase 12 (IndicF5 & Mac), the last part of Wave 2: Kannada spoken directly in a saved voice, Tamil unchanged, and
+Mac readiness. Wave 2 is now complete except a first try on a real Mac, which waits until a Mac is at hand. The
+release is 1.5.0 (the plan's `v1.1.0` was written before every phase raised the middle number).
+
+### New
+- **Kannada spoken directly in your saved voice: "set up the Kannada voice".** Before, Kannada was read by a Microsoft
+  reader voice and then changed into the saved voice, which sounds only partly like the person. With this option,
+  IndicF5 (AI4Bharat, IIT Madras: F5-TTS taught 11 Indian languages) speaks Kannada in the voice itself, for reading
+  aloud, narration and dubbing. The default setup is unchanged. Tamil keeps the reader voice (the owner's choice),
+  and IndicF5 is never downloaded or offered for it.
+- **Its licence is in doubt, and the setup says so first.** IndicF5's makers publish it under the MIT licence, but
+  their paper says it was made by further training F5-TTS's English model, whose weights are licensed for
+  non-commercial use only (CC BY-NC 4.0, because of their training data). Another company that built on IndicF5
+  released its model as non-commercial for that reason. The setup tells the person, before anything is downloaded,
+  that it may be fine only for personal, non-commercial use, and asks whether to go ahead; the user guide and the
+  voice helper say the same.
+- **The model is gated on Hugging Face, handled like speaker labels.** The person accepts IndicF5's terms on its page
+  themselves (Hugging Face then shares their account's name and email with AI4Bharat: the user guide says so), and
+  the key goes only into the setup's small window, never into the chat or the log. One key serves both options: a
+  key saved for speaker labels is used again, without a window. The model (1.4 GB, the voice model and its vocoder in
+  one file, and its 11 KB list of letters) is pinned to an exact version and exact sizes and downloaded with progress
+  and resume, like every model; F5-TTS never downloads anything itself.
+- **A short Kannada sentence, read once for each voice.** IndicF5 copies a voice from a recording and the exact words
+  said in it, so the engine keeps one fixed sentence (it means "Hello! This is my voice. The weather is lovely today,
+  so let's go to the park this evening and walk for a while.") and the person reads it once: the voice helper shows
+  it and records them (it stops 2 seconds after they stop), or takes a phone recording of them reading it. It is
+  kept beside the voice as `<voice>.kannada.flac` (read again, it is replaced). Voices saved before: the first time
+  Kannada is asked for in one, the voice helper offers the sentence; until it is read, or for a voice whose speaker
+  can't be asked (one saved from someone else's video), Kannada keeps the reader voice.
+- **It is slower than the other languages, and says so.** About 9 seconds of work per second of speech on the
+  24-thread laptop it was tried on (F5's steps from noise to speech are 16, not its 32: measured to sound the same in
+  half the time), so a 10-minute reading takes about an hour and a half; at most about 20 minutes of Kannada fit in
+  one job. The voice helper says how long before a long Kannada reading or dub, the progress moves at each of
+  IndicF5's steps (a take runs for minutes), and Esc stops it within seconds.
+- **If IndicF5 can't be downloaded, Kannada still works.** When Hugging Face refuses the key (terms not accepted, a
+  key it doesn't know) or the download drops, the Kannada is made with the reader voice, and one plain sentence says
+  why and what to do.
+- Engine: `indic.py` (IndicF5 built from its two files: F5-TTS's first "Base" design, `DiT(dim=1024, depth=22,
+  heads=16, ff_mult=2, text_dim=512, conv_layers=4)`, and the Vocos 24 kHz vocoder; its notes go to the log, as
+  stdout carries the MCP messages). `speak` and `speak_timed` return `route` (`direct` or `reader`) and, after a
+  failed download, a `note`; `save_voice` and `record_voice` take `kannada_sentence`; `list_voices` returns
+  `kannada_sentence` and `kannada_readings`; `check_setup` returns `kannada_voice`. Setup: `install.py indic`
+  (optional extra `indic` = `f5-tts==1.0.8`, `datasets>=5`, `pyarrow<26`), `video-audio-engine --warm indic`.
+  `models.GATED` names the setup to run for each gated model, so the key messages say "set up the Kannada voice" or
+  "set up speaker labels".
+- **Apple Silicon Macs (macOS 14 or later), ready but not yet tried on a real Mac.** Every package the engine uses has
+  a ready-made build for these Macs; two of them (through faster-whisper) need macOS 14. The tests now also run on
+  an Apple Silicon Mac on GitHub, on every change. The microphone messages name the Mac's own settings on a Mac; a
+  file the Mac refused to open or save (the Documents folder not yet allowed) gets a plain message saying where to
+  allow it, instead of "Something went wrong"; the setup says to open a new Terminal window after installing uv on a
+  Mac; the key window comes to the front and takes the keyboard. `docs/MAC-TEST.md` is a plain-English list for
+  whoever tries checklist items 1 to 10 on a Mac for the first time.
+
+### Changed
+- The `indic` extra moves five shared packages to the older versions the voice and speaker models were made with,
+  for everyone (uv keeps one version of each package): filelock 4.2.4 → 3.32.7, fsspec 2026.9.0 → 2026.7.0,
+  omegaconf 2.4.0 → 2.3.1, rich 15.0.0 → 13.9.4 and twine 7.0.0 → 6.2.0. Every test passes with them.
+- Why F5-TTS 1.0.8: 1.1.0 to 1.1.9 cap pydantic below what the MCP package needs, and later ones need torchcodec. Its
+  trainer imports `datasets`, so the extra sets a floor on it (uv otherwise picked one from 2020) and keeps pyarrow
+  below 26, which refuses NumPy 1 (the voice models need it).
+
+### Not in this version
+- Tamil spoken directly in the saved voice: by the owner's choice, Tamil keeps the reader voice.
+- A first try on a real Mac (`docs/MAC-TEST.md` is ready for it), once a Mac is at hand.
+- The House-theme avatars for Madav's Agent Studio: moved to after the build, together with the check in Madav (the
+  owner's choice).
+- The release tag and the GitHub release page.
+
+### Tried for real
+- **Kannada in a saved voice, checklist 17.** Two speakers from Google's FLEURS Kannada recordings (CC BY 4.0), a man
+  and a woman, told apart by the speaker-voices model among the first 91 clips of its dev set. For each, an
+  11-second clip and its own words stood in for the saved voice and the Kannada sentence, and six of their other
+  sentences (6 to 14 seconds) were spoken by IndicF5 and by the reader route. Their real recordings were the
+  yardstick: likeness by the speaker-voices model (wespeaker, from speaker labels; each real clip scores 0.91
+  against the rest of the same person's clips, two different people about 0.05), and the words by speech
+  recognition (faster-whisper large-v3-turbo in Kannada), as the share of letters it got wrong.
+  - The woman: likeness 0.74 by IndicF5, 0.65 by the reader route; 6% of letters wrong, against 20%.
+  - The man: 0.78 by IndicF5, 0.80 by the reader route, about the same; 8% of letters wrong, against 20%.
+  - Speech recognition got 13% and 19% wrong on their real recordings: real reading has slips, pauses and room
+    sound, so these figures compare the two routes; they don't rate the speech against a person.
+  - Speed, on a laptop with an Intel Core Ultra 9 275HX (24 threads): F5's own 32 steps took 19 seconds of work per
+    second of speech (16 to 21 for single sentences), 16 steps 9.1, with the same likeness (0.78 and 0.74, against
+    0.77 and 0.76) and words (8% and 6% wrong, against 8% and 5%), so the engine uses 16. The reader route took 2.
+- **The real model's test (`-m slow`, 96 seconds).** A Microsoft reader voice saved as the voice, with its reading
+  of the sentence: IndicF5 spoke a new Kannada sentence at the length its words need, sounding like that voice and
+  not like another Kannada reader voice. Esc part-way through a take stopped it there, and the next take came out
+  right.
+- **The setup with a real key.** The Kannada voice's install step on a developer data folder: the owner pasted their
+  key into the key window (never into the chat or the log), Hugging Face let the download through once IndicF5's
+  terms were accepted, the 1.4 GB model came down with progress, and check_setup then said `kannada_voice: true`.
+  The copy of the key was deleted after the tries.
+- **Through Claude with the plugin.** "Save speaker.wav as a voice called "FLEURS Kannada Test" ... keep sentence.mp3
+  as that voice's Kannada sentence reading ... then read this aloud in that voice: ನಮಸ್ಕಾರ. ನಾಳೆ ಬೆಳಿಗ್ಗೆ ನಾವು
+  ಮಾರುಕಟ್ಟೆಗೆ ಹೋಗೋಣ." (the FLEURS man's two clips, and the sentence said in his voice by IndicF5, as no recording of
+  him reading it exists) went to the voice helper. It checked the setup, saved the voice, kept the reading
+  (`save_voice` with `kannada_sentence`) and spoke the line directly (`route: direct`, 5 seconds, about 2 minutes
+  20 in all with loading the model); speech recognition heard every word. The test files were deleted afterwards.
+- **Tamil:** not tried, by the owner's choice; it works as before.
+
 ## 1.4.0
 
 Phase 11 (Speakers & graphics card), the fourth part of Wave 2.

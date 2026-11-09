@@ -18,7 +18,10 @@ from .speakers import printed_to_log
 
 RATE = 24000
 LONGEST = 22  # seconds F5 makes at once, the reading included; a longer text is made in parts
-STEPS = 32  # F5's steps from noise to speech for each take (its default)
+# F5's steps from noise to speech for each take. Its default is 32; measured on two FLEURS Kannada speakers (checklist
+# 17), 16 sounded as much like them and its words were as clear, in half the time: about 9 seconds of work per
+# second of speech on a 24-thread processor, against 19.
+STEPS = 16
 
 
 def installed() -> bool:
@@ -47,18 +50,30 @@ class Speaker:
         audio = voices.read_audio(reading, RATE)
         self.voice = torch.from_numpy(audio / (float(np.abs(audio).max()) or 1.0) * 0.9).unsqueeze(0)
 
-    def generate(self, text: str):
+    def generate(self, text: str, done=lambda share: None):
+        """`done(share)` is called at each of F5's steps with the share of the text made so far (0 to 1): a take
+        runs for minutes, so this keeps the progress moving, and Esc (raised from it) stops within seconds."""
         import torch
         from f5_tts.infer.utils_infer import chunk_text, infer_batch_process
         seconds = self.voice.shape[-1] / RATE
         # As F5's own infer_process: the bytes of text that fit in what is left of LONGEST, at the reading's pace.
         fits = int(len(voices.SENTENCE.encode("utf-8")) / seconds * (LONGEST - seconds))
-        waves = []
-        with printed_to_log("IndicF5"):
-            for piece in chunk_text(text, max_chars=fits):
-                wave, _, _ = next(infer_batch_process((self.voice, RATE), voices.SENTENCE, [piece], self.model,
-                                                      self.vocoder, nfe_step=STEPS, progress=None, device="cpu"))
-                waves.append(wave)
+        pieces, waves, passes = chunk_text(text, max_chars=fits), [], [0]
+
+        def each_pass(*_):  # two passes of the model per step: with and without the voice and words to follow
+            done(passes[0] / (2 * STEPS * len(pieces)))
+            passes[0] += 1
+
+        hook = self.model.transformer.register_forward_pre_hook(each_pass)
+        try:
+            with printed_to_log("IndicF5"):
+                for piece in pieces:
+                    wave, _, _ = next(infer_batch_process((self.voice, RATE), voices.SENTENCE, [piece], self.model,
+                                                          self.vocoder, nfe_step=STEPS, progress=None, device="cpu"))
+                    waves.append(wave)
+        finally:
+            hook.remove()
+            self.model.transformer.clear_cache()  # F5 keeps the words' encoding between passes; stopped, it stays
         return torch.from_numpy(np.concatenate(waves).astype(np.float32)).unsqueeze(0)
 
 

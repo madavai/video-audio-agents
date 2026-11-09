@@ -214,7 +214,12 @@ def test_only_the_six_languages_and_the_right_model_for_each(monkeypatch, tmp_pa
     used.clear()
     monkeypatch.setattr(speech.indic, "ready", lambda: True)
     monkeypatch.setattr(voices, "kannada_reading", lambda voice: tmp_path / "Me.kannada.flac")
-    monkeypatch.setattr(speech.indic, "load", lambda report: used.append("kannada") or Model())
+    class Kannada(Model):  # IndicF5: reports at each of its steps
+        def generate(self, text, done):
+            done(0.5)
+            return super().generate(text)
+
+    monkeypatch.setattr(speech.indic, "load", lambda report: used.append("kannada") or Kannada())
     assert speech.spoken(report, ["ನಮಸ್ಕಾರ."], "Kannada", "Me", tmp_path, "Speaking")[2]["route"] == "direct"
     assert speech.spoken(report, ["வணக்கம்."], "Tamil", "Me", tmp_path, "Speaking")[2]["route"] == "reader"
     assert used == ["kannada", None, "voice", "ta-IN-ValluvarNeural", None]

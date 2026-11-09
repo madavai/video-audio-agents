@@ -88,7 +88,8 @@ Say "update video audio agents". Or turn on auto-update: `/plugin` → Marketpla
   Mac is checked by tests but not yet tried on a real Mac). Not available in claude.ai in a browser or on phones.
 - Voice work needs about 6 GB of free memory and is slow on an ordinary computer (5 to 8 seconds of work per second
   of speech). English, Hindi, French and Spanish are spoken directly in the saved voice, and Kannada too with the
-  Kannada voice option (whose model may be for non-commercial use only); Tamil, and Kannada without that option, are
+  Kannada voice option (whose model may be for non-commercial use only, and which is slower: about 10 seconds of work
+  per second of speech); Tamil, and Kannada without that option, are
   read by an online reader voice first, so they match it less closely.
 - Copy-protected services (Netflix and similar) are not supported.
 - You are responsible for following the terms of the sites you download from. The voice helper only saves a voice
@@ -100,12 +101,13 @@ Say "update video audio agents". Or turn on auto-update: `/plugin` → Marketpla
 ## Status
 
 Version 1.5: Wave 1 of the [build plan](docs/BUILD-PLAN.md) is complete, and so is Wave 2, except a first try on a
-real Mac and the avatars for Madav's Agent Studio: whole playlists and channels, search across transcripts and audio
+real Mac (it waits until a Mac is at hand): whole playlists and channels, search across transcripts and audio
 clean-up, Shorts from a video's best moments, a week's content calendar, quote cards, bilingual and simpler
 translations, narration with your own music and podcast-ready files with chapters, who said what, faster transcripts
 on a graphics card, Kannada spoken directly in your saved voice, and Apple Silicon Macs. See the
 [changelog](CHANGELOG.md) for what changed, and [ADR 0001](docs/adr/0001-python-engine-as-plugin.md) for why it is
-built this way.
+built this way. The House-theme avatars for Madav's Agent Studio move to after the build, together with the check
+in Madav.
 
 ## Licence
 
