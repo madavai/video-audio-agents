@@ -180,9 +180,11 @@ class IndicStandIn(StandIn):
         return super().generate(text)
 
 
-def test_kannada_is_spoken_directly_once_the_sentence_is_read(stand_in, voice, copy_of, monkeypatch):
+def test_kannada_is_spoken_directly_once_the_sentence_is_read(stand_in, voice, copy_of, listener, monkeypatch):
     """With the Kannada voice set up (IndicF5 stood in for), a voice's reading of the sentence, given as a file, makes
-    Kannada come straight from the voice model. Before that reading, and for Tamil always, the reader voice."""
+    Kannada come straight from the voice model. Before that reading, and for Tamil always, the reader voice. Speech
+    recognition (stood in for: it hears the sentence) listens to the reading when it is kept and, decoded from its
+    file, once more the first time it is used in a session."""
     model = IndicStandIn()
     monkeypatch.setattr(speech.indic, "ready", lambda: True)
     monkeypatch.setattr(speech.indic, "load", lambda report: model)
@@ -193,11 +195,13 @@ def test_kannada_is_spoken_directly_once_the_sentence_is_read(stand_in, voice, c
     result = run(speech.speak, "Test", "Kannada", "as_made", text)
     assert result["route"] == "direct" and model.reading == "Test.kannada.flac" and model.texts == [text]
     assert result["seconds"] == pytest.approx(len(text) * SECONDS_PER_LETTER + speech.PAUSE, abs=0.1)
+    assert run(speech.speak, "Test", "Kannada", "as_made", "ನಮಸ್ಕಾರ.")["route"] == "direct"
     assert run(speech.speak, "Test", "Tamil", "as_made", "வணக்கம்.")["route"] == "reader"
-    assert model.texts == [text]
+    assert model.texts == [text, "ನಮಸ್ಕಾರ."] and listener.times == 2
 
 
-def test_kannada_falls_back_to_the_reader_voice_when_the_model_is_refused(stand_in, voice, copy_of, monkeypatch):
+def test_kannada_falls_back_to_the_reader_voice_when_the_model_is_refused(stand_in, voice, copy_of, listener,
+                                                                         monkeypatch):
     """Hugging Face refused the key (terms not accepted) or the download failed: the Kannada is still made, with the
     reader voice, and one plain note says why. Nothing else breaks."""
     def refused(report):
@@ -218,7 +222,7 @@ def test_kannada_falls_back_to_the_reader_voice_when_the_model_is_refused(stand_
     assert run(speech.speak, "Test", "Kannada", "as_made", voices.SENTENCE)["route"] == "reader"
 
 
-def test_esc_stops_a_direct_kannada_take_part_way(stand_in, voice, copy_of, monkeypatch):
+def test_esc_stops_a_direct_kannada_take_part_way(stand_in, voice, copy_of, listener, monkeypatch):
     """One IndicF5 take runs for minutes: Esc is passed in at its steps, so it stops part-way and saves nothing."""
     model, job = IndicStandIn(), progress.Job()
     monkeypatch.setattr(speech.indic, "ready", lambda: True)
@@ -235,7 +239,8 @@ def test_esc_stops_a_direct_kannada_take_part_way(stand_in, voice, copy_of, monk
     monkeypatch.setattr(job, "report", esc_in_the_take)
     with pytest.raises(progress.Stopped):
         speech.speak(job, "Test", "Kannada", "as_made", voices.SENTENCE)
-    assert reports == [0, 50] and model.texts == [] and not (paths.output_root() / "Speech").exists()
+    # Listening to the reading, starting the take, half-way through it
+    assert reports == [0, 0, 50] and model.texts == [] and not (paths.output_root() / "Speech").exists()
 
 
 def test_dubbing_puts_every_line_at_its_time(stand_in, voice, tmp_path):
@@ -298,7 +303,7 @@ def test_tempo_changes_the_length_not_the_pitch(with_models):
 def test_transcribing_lets_a_voice_model_go_first(with_models, monkeypatch):
     monkeypatch.setattr(models, "loaded", {"multilingual": "a voice model of several GB"})
     monkeypatch.setattr(transcribe.gpu, "usable", lambda: False)  # this PC may have a card; CI hasn't
-    transcribe.load("base", progress.Job())
+    transcribe.load("base", progress.Job().report)
     assert list(models.loaded) == [("base", "cpu")]
 
 

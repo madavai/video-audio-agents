@@ -13,13 +13,13 @@ ACCURACY = {"fast": "base", "balanced": "small", "accurate": "large-v3-turbo"}
 AUDIO = {".mp3", ".m4a", ".wav", ".webm", ".ogg", ".opus", ".flac", ".aac"}  # delete_audio_after never deletes a video
 
 
-def load(name: str, job):
-    """The speech model, downloaded first if needed, on the graphics card when it can be used. Batched and with
-    silence skipped: much faster on a CPU."""
-    device = "cuda" if gpu.usable() else "cpu"
+def load(name: str, report, device: str | None = None):
+    """The speech model, downloaded first if needed, on the graphics card when it can be used (or on `device`).
+    Batched and with silence skipped: much faster on a CPU."""
+    device = device or ("cuda" if gpu.usable() else "cpu")
     if (name, device) not in models.loaded:
-        models.ensure([name], job.report)
-        job.report(0, "Loading the speech-to-text model" + (" on the graphics card" if device == "cuda" else ""))
+        models.ensure([name], report)
+        report(0, "Loading the speech-to-text model" + (" on the graphics card" if device == "cuda" else ""))
         from faster_whisper import BatchedInferencePipeline, WhisperModel
         models.loaded.clear()  # a voice model takes several GB: let it go first
         gc.collect()
@@ -35,7 +35,7 @@ def load(name: str, job):
 
 def listen(job, source: Path, accuracy: str):
     """The lines and the recording's details, on the graphics card if it can be used, else on the processor."""
-    pipeline, device = load(ACCURACY[accuracy], job)
+    pipeline, device = load(ACCURACY[accuracy], job.report)
     job.report(0, "Listening" + (" (graphics card)" if device == "cuda" else ""))
     try:
         # Word timings instead of segment timings: the batched segment timings drop words at chunk ends.

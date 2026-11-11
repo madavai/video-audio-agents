@@ -69,7 +69,8 @@ def test_the_kannada_voice_is_pinned_gated_and_an_option():
     repo, revision = models.MODELS["kannada"]["repo"]
     assert repo == "ai4bharat/IndicF5" and len(revision) == 40 and models.GATED[repo] == "the Kannada voice"
     assert models.MODELS["kannada"]["files"] == {"model.safetensors": 1402789408, "checkpoints/vocab.txt": 11283}
-    assert models.INDIC == ["kannada"] and "kannada" not in models.FULL
+    assert "kannada" not in models.FULL and models.INDIC == ["kannada", "large-v3-turbo"]  # it checks each reading
+    assert models.MODELS["large-v3-turbo"]["repo"][0] not in models.GATED
 
 
 def test_a_gated_file_gets_the_key_only_for_hugging_face_itself(key, requests):

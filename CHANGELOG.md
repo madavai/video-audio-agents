@@ -2,6 +2,50 @@
 
 The version goes up with every change people should receive: a phase adds one to the middle number, a fix to the last. 1.0.0 is the release, after Phase 7.
 
+## 1.5.1
+
+### Fixes
+- **A Kannada reading is kept only if it is the sentence.** On the owner's PC, Kannada spoken directly in their voice
+  began with "...ಹೊತ್ತು ನಡೆಯೋಣ" ("...walk for a while"), the end of the Kannada sentence, before the words asked for,
+  and would have in every Kannada reading and dub in that voice. The cause: the saved "reading" wasn't the sentence
+  at all, but 12.7 seconds of English talk the microphone picked up while it waited (speech recognition: English,
+  certainty 1.0). IndicF5 is told the recording says the sentence; when it doesn't, the sentence's words that it
+  can't place in the recording come out at the start of every take (of every part, in a long text: four times in
+  a 40-second take). No way of preparing the recording can fix that, so the engine now listens first:
+  - Saving a reading (`record_voice` or `save_voice` with `kannada_sentence`), the accurate speech-to-text model
+    hears it with the language set to Kannada, and the reading is kept only if what it hears is at least half alike
+    to the sentence, letter by letter. Otherwise it is refused in one plain sentence, and an earlier reading stays.
+  - A reading saved by 1.5.0 is checked the first time it is used in a session: if it isn't the sentence, that
+    Kannada is made with the reader voice, with a `note` asking for the sentence again. Each recording is listened
+    to once per session (about 15 seconds on the processor).
+  - "Set up the Kannada voice" now also downloads the accurate speech-to-text model (1.6 GB) if the full setup
+    hasn't: only it writes Kannada (the fast and balanced models wrote readings of the sentence in Urdu or Hindi
+    letters).
+  - The voice helper asks for nothing else to be said near the microphone while the sentence records, and offers
+    to record it again when a reading is refused or the note says so.
+- **What it wasn't.** Three suspected causes were tried with the real model, and none was it: the reading's long
+  pauses, the missing silence after it, and the sentence ending in "." without a space (F5 adds the space itself).
+  Shortening the pauses and adding silence after the owner's reading still gave the leak, or lost the first word. A
+  real reading of the sentence made as halting as the owner's (four pauses of 1.4 seconds, 12.7 seconds in all, cut
+  tight at the end) gave the right words in all six takes, so the reading is used as before.
+
+### Tried for real
+- **The owner's text and reading.** "ನಮಸ್ಕಾರ! ಈಗ ನಾನು ನನ್ನದೇ ಧ್ವನಿಯಲ್ಲಿ ಕನ್ನಡ ಮಾತನಾಡುತ್ತಿದ್ದೇನೆ." with the owner's
+  saved reading, on this PC with the real IndicF5: every take started with the sentence's last two to four words
+  (speech recognition, large-v3-turbo), as the owner heard. The new check refuses that reading.
+- **How well the check tells readings apart** (letters alike, 0 to 1; kept from 0.5): readings of the sentence by
+  two Microsoft Kannada reader voices 0.92 to 0.97, fluent or halting; 24 sentences by two real FLEURS Kannada
+  speakers against their own words 0.65 to 0.96; the first half of a reading 0.14 to 0.28; English speech (the
+  owner's recording, and the tests' speech sample) 0. The fast and balanced speech models scored every Kannada
+  reading 0, so only the accurate one can do this.
+- **Readings of the sentence give the words asked for.** In the reader voices' readings, halting and fluent: the
+  owner's text in six takes, a longer two-sentence text, and a 40-second text made in six parts. Every word was
+  there, with nothing from the sentence, at the start of every part too.
+- **The real model's test (`-m slow`, 171 seconds)** now also has a reader voice read another Kannada sentence (one
+  that starts with the same "ನಮಸ್ಕಾರ") as the reading: it is refused, and the reading of the sentence is kept.
+- **Checklist 17 is unchanged:** how IndicF5 makes speech from a kept reading didn't change, so its likeness and
+  letter errors on the FLEURS speakers are the same as in 1.5.0.
+
 ## 1.5.0
 
 Phase 12 (IndicF5 & Mac), the last part of Wave 2: Kannada spoken directly in a saved voice, Tamil unchanged, and

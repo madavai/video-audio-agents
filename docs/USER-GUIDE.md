@@ -56,7 +56,7 @@ Three options are added only if you ask for them, after the standard setup:
 |---|---|---|
 | "set up the graphics card" | about 0.6 GB (0.9 GB on disk) | transcripts on an NVIDIA graphics card, about 10 to 20 times faster ([more](#faster-transcripts-on-a-graphics-card)) |
 | "set up speaker labels" | about 1 GB | who said what in interviews and conversations; needs a free Hugging Face account ([more](#who-said-what)) |
-| "set up the Kannada voice" | about 1.7 GB | Kannada spoken directly in your saved voice; needs a free Hugging Face account, and may be for non-commercial use only ([more](#kannada-in-your-own-voice)) |
+| "set up the Kannada voice" | about 1.7 GB (3.3 GB without the full setup) | Kannada spoken directly in your saved voice; needs a free Hugging Face account, and may be for non-commercial use only ([more](#kannada-in-your-own-voice)) |
 
 Running the setup again later (after an update, for example) keeps the options you chose.
 
@@ -377,15 +377,24 @@ anything starts. You need your own free Hugging Face account:
    paste the key there and click **Save**, never into the chat. If you set up speaker labels before, the key you
    saved then is used again and no window opens.
 
-It installs about 0.3 GB of programs and downloads the model (1.4 GB, once), then asks you to restart Claude Code.
+It installs about 0.3 GB of programs and downloads the model (1.4 GB, once), and the accurate speech-to-text model
+(1.6 GB) if the full setup hasn't already, then asks you to restart Claude Code.
 
 **Reading one sentence, once for each voice:** IndicF5 copies a voice from a recording and the exact words said in
 it, so each saved voice needs your reading of one short Kannada sentence. Claude shows it (it means "Hello! This is
 my voice. The weather is lovely today, so let's go to the park this evening and walk for a while.") and records you
-reading it once, at your normal pace; it stops by itself when you stop. A phone recording of you reading it works
-too. Read it again any time to replace it. A voice saved before you set this up gets asked for the sentence the
-first time you want Kannada in it; until then, or for a voice whose speaker you can't ask, Kannada keeps the reader
-voice. The reading is kept beside the voice as `<voice>.kannada.flac`.
+reading it once, at your normal pace; it starts at the first sound and stops by itself when you stop, so say nothing
+else near the microphone until it stops (no talking to someone, no voice typing). A phone recording of you reading
+it works too. Read it again any time to replace it. A voice saved before you set this up gets asked for the sentence
+the first time you want Kannada in it; until then, or for a voice whose speaker you can't ask, Kannada keeps the
+reader voice. The reading is kept beside the voice as `<voice>.kannada.flac`.
+
+**Each reading is checked.** Because IndicF5 is told the recording says exactly that sentence, a recording of other
+words makes it go wrong: it says the end of the sentence ("...walk for a while") before every text you give it. So
+before a reading is kept, speech recognition listens to it (about 15 seconds), and a recording that isn't the
+sentence is refused, with your earlier reading kept. A reading saved with version 1.5.0 is checked the first time
+it is used: if it isn't the sentence, that Kannada is made with the reader voice, and Claude asks you to read the
+sentence again.
 
 **It is slower than the other languages:** about 9 to 10 seconds of work for each second of Kannada speech on the
 computer it was tried on (24 processor threads), and longer on a computer with fewer. A one-minute reading takes

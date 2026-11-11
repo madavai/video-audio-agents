@@ -1,11 +1,13 @@
 """The real Kannada voice model, IndicF5, on this computer only: `uv run --extra indic pytest -m slow`, with IndicF5's
 two files in .test-data/models/IndicF5/ (copy them from a data folder where "set up the Kannada voice" ran: the model
-is gated, so tests can't download it) and Chatterbox's voice encoder in .test-data/models/chatterbox/ (to measure
-likeness). Needs the internet for the reader voices. The saved voice is a Microsoft reader voice, so no real person's
+is gated, so tests can't download it), Chatterbox's voice encoder in .test-data/models/chatterbox/ (to measure
+likeness) and the accurate speech-to-text model in .test-data/models/faster-whisper-large-v3-turbo/ (it checks the
+reading). Needs the internet for the reader voices. The saved voice is a Microsoft reader voice, so no real person's
 voice is copied."""
 import asyncio
 
 import pytest
+from mcp.server.mcpserver.exceptions import ToolError
 
 from video_audio_engine import indic, models, progress, speech, voices
 
@@ -29,10 +31,14 @@ def reader_says(text, reader, file):
 
 @pytest.fixture
 def kannada_voice(with_models, tmp_path):
-    """A saved voice "Sapna" (a Microsoft Kannada reader voice) with its reading of the Kannada sentence."""
-    if not indic.installed() or not models.is_present("kannada") or not models.is_present("english"):
-        pytest.skip("needs --extra indic, and IndicF5's and Chatterbox's files in .test-data/models")
+    """A saved voice "Sapna" (a Microsoft Kannada reader voice) with its reading of the Kannada sentence. Another
+    Kannada sentence, read in the same voice, is refused as its reading: speech recognition hears other words."""
+    if not indic.installed() or not all(models.is_present(name) for name in ("kannada", "english", "large-v3-turbo")):
+        pytest.skip("needs --extra indic, and IndicF5's, Chatterbox's and large-v3-turbo's files in .test-data/models")
     run(voices.save_voice, str(reader_says(PASSAGE, "kn-IN-SapnaNeural", tmp_path / "passage.mp3")), "Sapna", True)
+    other = reader_says(TEXT, "kn-IN-SapnaNeural", tmp_path / "other.mp3")  # it too starts "ನಮಸ್ಕಾರ"
+    with pytest.raises(ToolError, match="doesn't sound like the Kannada sentence"):
+        run(voices.save_voice, str(other), "Sapna", True, True)
     reading = reader_says(voices.SENTENCE, "kn-IN-SapnaNeural", tmp_path / "sentence.mp3")
     assert 3 <= run(voices.save_voice, str(reading), "Sapna", True, True)["seconds"] <= 15
     return tmp_path
