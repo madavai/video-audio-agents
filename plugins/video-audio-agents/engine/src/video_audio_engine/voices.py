@@ -27,6 +27,8 @@ CONSENT = ("A voice is only saved when it is the person's own, or they agreed to
 # let's go to the park this evening and walk for a while." About 6 to 9 seconds at a normal pace.
 SENTENCE = "ನಮಸ್ಕಾರ! ಇದು ನನ್ನ ಧ್ವನಿ. ಇಂದು ಹವಾಮಾನ ತುಂಬಾ ಚೆನ್ನಾಗಿದೆ, ಆದ್ದರಿಂದ ಸಂಜೆ ಉದ್ಯಾನವನಕ್ಕೆ ಹೋಗಿ ಸ್ವಲ್ಪ ಹೊತ್ತು ನಡೆಯೋಣ."
 READING = ".kannada.flac"  # beside the voice's .wav (a .flac, so it isn't listed as a voice of its own)
+HEARD = 0.5  # how alike what speech recognition hears in a reading and SENTENCE must be (says_sentence)
+heard = {}  # recordings already listened to, by their sound: whether each says SENTENCE (once per session)
 
 
 def voices_dir() -> Path:
@@ -65,7 +67,7 @@ def save_voice(job, source_file: str, name: str, consent: bool, kannada_sentence
     job.report(0, "Reading the recording")
     if kannada_sentence:
         voice_file(name)  # an unknown voice is reported before anything is read
-        return keep_reading(read_audio(source, RATE, seconds=60), name)
+        return keep_reading(job, read_audio(source, RATE, seconds=60), name)
     return keep(read_audio(source, RATE, seconds=600), name)
 
 
@@ -100,7 +102,7 @@ def record_voice(job, name: str, seconds: int, consent: bool, kannada_sentence: 
     except sounddevice.PortAudioError as e:  # no microphone, or it is in use
         log.warning("Recording failed: %s", e)
         raise ToolError("The microphone couldn't be used. Check one is connected and not in use, then try again.") from e
-    return keep_reading(np.concatenate(chunks), name) if kannada_sentence else keep(np.concatenate(chunks), name)
+    return keep_reading(job, np.concatenate(chunks), name) if kannada_sentence else keep(np.concatenate(chunks), name)
 
 
 def keep(audio: np.ndarray, name: str) -> dict:
@@ -120,9 +122,10 @@ def keep(audio: np.ndarray, name: str) -> dict:
     return {"voice": path.stem, "sample_file": str(path), "seconds": round(len(audio) / RATE, 1)}
 
 
-def keep_reading(audio: np.ndarray, voice: str) -> dict:
-    """The person's reading of SENTENCE, without the silence around it, as <voice>.kannada.flac. A new reading
-    replaces the old one (the person read it again), like the voice's pronunciation list."""
+def keep_reading(job, audio: np.ndarray, voice: str) -> dict:
+    """The person's reading of SENTENCE, without the silence around it, as <voice>.kannada.flac, once speech
+    recognition heard the sentence in it. A new reading replaces the old one (the person read it again), like the
+    voice's pronunciation list."""
     import librosa
     import soundfile
     if audio.size == 0 or np.abs(audio).max() < 0.01:
@@ -133,11 +136,41 @@ def keep_reading(audio: np.ndarray, voice: str) -> dict:
     if not 3 <= seconds <= 15:
         raise ToolError(f"That reading is {seconds:.0f} seconds long, and the sentence takes about 6 to 9 seconds. "
                         "Read just the sentence once, at a normal pace.")
+    with models.one_at_a_time(job):
+        if not says_sentence(audio, job.report):
+            raise ToolError("That recording doesn't sound like the Kannada sentence (speech recognition heard other "
+                            "words), so it wasn't kept. Read just the sentence once, in Kannada, with nothing else "
+                            "said while it records.")
     path = voice_file(voice).with_name(f"{voice}{READING}")
     part = path.with_name(path.name + ".part")
     soundfile.write(part, audio, RATE, format="FLAC")
     part.replace(path)
     return {"voice": voice, "kannada_reading": str(path), "seconds": round(seconds, 1)}
+
+
+def says_sentence(audio: np.ndarray, report) -> bool:
+    """Whether a recording (samples at RATE) is a reading of SENTENCE: the accurate speech-to-text model listens with
+    the language set to Kannada, and what it hears must be at least HEARD alike to the sentence, letter by letter
+    (difflib's ratio of the Kannada letters in common). IndicF5 is told the reading says SENTENCE; a recording of
+    other words (the person talking in English while the microphone listened) made it say the sentence's last words
+    before every text. Measured: readings of the sentence 0.92 to 0.97 (halting ones too), 24 FLEURS Kannada
+    sentences against their own words 0.65 to 0.96, the first half of a reading 0.14 to 0.28, English speech 0.
+    Only the accurate model writes Kannada (the fast and balanced ones heard none of it), and it runs on the processor
+    here, so a graphics card that fails can't stop the Kannada voice. The caller holds models.one_at_a_time."""
+    import difflib
+    import hashlib
+    import librosa
+    from . import transcribe
+    key = hashlib.sha1(audio.tobytes()).hexdigest()
+    if key not in heard:
+        pipeline, _ = transcribe.load("large-v3-turbo", report, device="cpu")
+        report(0, "Listening to the Kannada reading")
+        segments, _ = pipeline.transcribe(librosa.resample(audio, orig_sr=RATE, target_sr=16000), language="kn")
+        letters = [[ch for ch in text if "\u0c80" <= ch <= "\u0cff"]  # the Kannada letters, nothing else
+                   for text in ("".join(segment.text for segment in segments), SENTENCE)]
+        heard[key] = difflib.SequenceMatcher(None, *letters, autojunk=False).ratio() >= HEARD
+        log.info("The Kannada reading %s the sentence", "says" if heard[key] else "doesn't say")
+    return heard[key]
 
 
 def sample(voice: str, folder) -> str:

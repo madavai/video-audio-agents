@@ -182,7 +182,7 @@ def test_faint_noise_after_the_words_is_trimmed():
     assert len(trimmed) / rate == pytest.approx(1.2, abs=0.1)  # the words, and a little either side
 
 
-def test_only_the_six_languages_and_the_right_model_for_each(monkeypatch, tmp_path):
+def test_only_the_six_languages_and_the_right_model_for_each(monkeypatch, tmp_path, listener):
     with pytest.raises(ToolError, match="can't be spoken yet"):
         speech.check_language("German")
     used = []
@@ -214,6 +214,8 @@ def test_only_the_six_languages_and_the_right_model_for_each(monkeypatch, tmp_pa
     used.clear()
     monkeypatch.setattr(speech.indic, "ready", lambda: True)
     monkeypatch.setattr(voices, "kannada_reading", lambda voice: tmp_path / "Me.kannada.flac")
+    monkeypatch.setattr(voices, "read_audio", lambda file, rate: speechlike(7, rate))  # the reading, as read
+
     class Kannada(Model):  # IndicF5: reports at each of its steps
         def generate(self, text, done):
             done(0.5)
@@ -223,6 +225,15 @@ def test_only_the_six_languages_and_the_right_model_for_each(monkeypatch, tmp_pa
     assert speech.spoken(report, ["ನಮಸ್ಕಾರ."], "Kannada", "Me", tmp_path, "Speaking")[2]["route"] == "direct"
     assert speech.spoken(report, ["வணக்கம்."], "Tamil", "Me", tmp_path, "Speaking")[2]["route"] == "reader"
     assert used == ["kannada", None, "voice", "ta-IN-ValluvarNeural", None]
+
+    # A reading kept before readings were checked (1.5.0) that isn't the sentence: the reader, with a note.
+    used.clear()
+    voices.heard.clear()
+    listener.words = "I have a question. Now this plan is designed as part of it."
+    how = speech.spoken(report, ["ನಮಸ್ಕಾರ."], "Kannada", "Me", tmp_path, "Speaking")[2]
+    assert how["route"] == "reader" and used == ["voice", "kn-IN-GaganNeural", None]
+    assert how["note"].startswith("This Kannada was made with the reader voice, because the Kannada reading saved for "
+                                  "this voice doesn't sound like the Kannada sentence")
 
     # Set up, but this voice has no reading yet (saved before, or the speaker wasn't asked): the reader, as before.
     used.clear()
@@ -297,7 +308,7 @@ def test_an_unknown_voice_names_the_saved_ones(monkeypatch):
         voices.voice_file("Bob")
 
 
-def test_the_kannada_sentence_is_kept_with_its_voice(monkeypatch):
+def test_the_kannada_sentence_is_kept_with_its_voice(monkeypatch, listener):
     """The person reads the sentence for a saved voice: kept beside it as <voice>.kannada.flac (not listed as a voice
     of its own), named in kannada_readings; reading it again replaces it. Recording stops 2 s after the reading."""
     fake_microphone(monkeypatch, speechlike(20, voices.RATE))
@@ -330,6 +341,33 @@ def test_a_kannada_reading_needs_consent_a_saved_voice_and_the_sentence_alone(mo
         with pytest.raises(ToolError, match=f"That reading is {seconds} seconds long"):
             voices.record_voice(progress.Job(), "Anna", 20, True, kannada_sentence=True)
     assert voices.kannada_reading("Anna") is None and voices.list_voices()["kannada_readings"] == []
+
+
+def test_a_kannada_reading_is_kept_only_if_it_says_the_sentence(monkeypatch, listener):
+    """IndicF5 is told the reading says the sentence: a recording of other words (the person talking in English while
+    the microphone listened) made it say the sentence's last words before every text. So speech recognition (stood in
+    for) listens first: English, another sentence or the first words alone are refused, and the reading kept before
+    stays. Heard with a few letters wrong, as a real reading is, it is kept. A recording is listened to once."""
+    fake_microphone(monkeypatch, speechlike(20, voices.RATE))
+    voices.record_voice(progress.Job(), "Anna", 20, True)
+    for _ in range(2):  # the same recording twice: listened to once
+        fake_microphone(monkeypatch, speechlike(7, voices.RATE))
+        voices.record_voice(progress.Job(), "Anna", 20, True, kannada_sentence=True)
+    assert listener.times == 1
+    kept = voices.kannada_reading("Anna").read_bytes()
+    for i, words in enumerate(["I have a question. Now this plan is designed as part of it.",
+                               "ನಮಸ್ಕಾರ! ಈಗ ನಾನು ನನ್ನದೇ ಧ್ವನಿಯಲ್ಲಿ ಕನ್ನಡ ಮಾತನಾಡುತ್ತಿದ್ದೇನೆ.",
+                               "ನಮಸ್ಕಾರ! ಇದು ನನ್ನ ಧ್ವನಿ."]):
+        listener.words = words
+        fake_microphone(monkeypatch, speechlike(7, voices.RATE, loudness=0.3 + 0.05 * i))  # another recording each time
+        with pytest.raises(ToolError, match="doesn't sound like the Kannada sentence .* so it wasn't kept"):
+            voices.record_voice(progress.Job(), "Anna", 20, True, kannada_sentence=True)
+    assert voices.kannada_reading("Anna").read_bytes() == kept and listener.times == 4
+    listener.words = ("ನಮಸ್ಕಾರ ಇದು ನನ್ನ ದ್ವನಿ. ಇಂದು ಹವಾಮಾನ ತುಂಬ ಚನ್ನಾಗಿದೆ. ಆದರಿಂದ ಸಂಜೆ ಉದ್ಯಾನವನಕ್ಕೆ ಹೋಗಿ ಸುಲ್ಪ ಹೊತ್ತು "
+                      "ನಡೆಯೋನ.")  # as speech recognition heard a reader voice read it
+    fake_microphone(monkeypatch, speechlike(8, voices.RATE))
+    saved = voices.record_voice(progress.Job(), "Anna", 20, True, kannada_sentence=True)
+    assert saved["seconds"] == pytest.approx(8, abs=0.3) and voices.kannada_reading("Anna").read_bytes() != kept
 
 
 def test_one_big_model_in_memory_at_a_time(monkeypatch):

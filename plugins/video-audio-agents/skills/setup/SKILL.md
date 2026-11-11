@@ -97,7 +97,8 @@ Finish as in step 4 above: `speaker_labels` true in the JSON check, and a restar
 "Set up the Kannada voice", "Kannada in my own voice", or check_setup's `kannada_voice` is false when they want it.
 Without it, Kannada is read by an online reader voice and then changed into the saved voice (a weaker match). With
 it, IndicF5, a speech model made by AI4Bharat at IIT Madras, speaks Kannada directly in the saved voice. It installs
-about 0.3 GB of packages and downloads the model (1.4 GB). Tamil isn't part of it: Tamil keeps the reader voice. Run
+about 0.3 GB of packages and downloads the model (1.4 GB), and the accurate speech-to-text model (1.6 GB, which checks
+each Kannada reading) if the full setup hasn't already. Tamil isn't part of it: Tamil keeps the reader voice. Run
 the standard setup first.
 
 1. Before anything, tell them plainly, and ask "Go ahead?":

@@ -88,7 +88,8 @@ MODELS = {
 STANDARD = ["base", "small"]
 FULL = STANDARD + ["large-v3-turbo", "voice", "english", "multilingual", "music"]
 SPEAKERS = ["speaker-settings", "speaker-turns", "speaker-voices"]  # setup option "speakers", not part of full
-INDIC = ["kannada"]  # setup option "indic", not part of full
+# Setup option "indic", not part of full. The accurate speech-to-text model (in full) checks each Kannada reading.
+INDIC = ["kannada", "large-v3-turbo"]
 # The gated models, downloaded with the person's key, and the setup that asks for it ('say "set up <this>"').
 GATED = {"pyannote/speaker-diarization-3.1": "speaker labels", "pyannote/segmentation-3.0": "speaker labels",
          "ai4bharat/IndicF5": "the Kannada voice"}

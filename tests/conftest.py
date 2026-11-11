@@ -6,6 +6,7 @@ import shutil
 import subprocess
 import threading
 import time
+import types
 from pathlib import Path
 
 import pytest
@@ -22,6 +23,29 @@ def private_data(tmp_path, monkeypatch):
     monkeypatch.setenv("VAA_DATA", str(tmp_path / "data"))
     monkeypatch.setattr(paths, "documents_dir", lambda: tmp_path / "Documents")
     return tmp_path / "data"
+
+
+@pytest.fixture
+def listener(monkeypatch):
+    """The accurate speech-to-text model, stood in for where it checks that a Kannada reading says the sentence
+    (voices.says_sentence): it hears `listener.words` (the sentence, unless a test changes them) and counts in
+    `listener.times` how often it listened."""
+    from video_audio_engine import transcribe, voices
+    listener = types.SimpleNamespace(words=voices.SENTENCE, times=0)
+
+    class Pipeline:
+        def transcribe(self, audio, language):
+            assert language == "kn"
+            listener.times += 1
+            return [types.SimpleNamespace(text=listener.words)], None
+
+    def load(name, report, device=None):
+        assert name == "large-v3-turbo" and device == "cpu"
+        return Pipeline(), device
+
+    monkeypatch.setattr(transcribe, "load", load)
+    monkeypatch.setattr(voices, "heard", {})
+    return listener
 
 
 @pytest.fixture(scope="session")

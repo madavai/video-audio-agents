@@ -3,7 +3,7 @@ reader voice route. Installed only by the setup's Kannada voice option (install.
 Hugging Face and downloaded with the person's key (models.INDIC). Runs on the processor.
 
 IndicF5 copies a voice from a recording and the exact words said in it, so a voice needs one reading of
-voices.SENTENCE (voices.keep_reading); a voice without one keeps the reader route.
+voices.SENTENCE (voices.keep_reading, checked by voices.says_sentence); a voice without one keeps the reader route.
 
 Its makers call it MIT-licensed, but made it from F5-TTS's English model, whose weights are licensed for
 non-commercial use only (CC BY-NC 4.0): the user guide, the changelog and the setup say so."""
@@ -82,7 +82,7 @@ def load(report) -> Speaker:
     the letters it knows in vocab.txt), so F5-TTS never downloads anything itself. The big model in memory before
     is let go first."""
     if "kannada" not in models.loaded:
-        models.ensure(models.INDIC, report)
+        models.ensure(["kannada"], report)
         models.loaded.clear()
         gc.collect()
         report(0, "Loading the Kannada voice model")
