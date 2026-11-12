@@ -27,8 +27,14 @@ CONSENT = ("A voice is only saved when it is the person's own, or they agreed to
 # let's go to the park this evening and walk for a while." About 6 to 9 seconds at a normal pace.
 SENTENCE = "ನಮಸ್ಕಾರ! ಇದು ನನ್ನ ಧ್ವನಿ. ಇಂದು ಹವಾಮಾನ ತುಂಬಾ ಚೆನ್ನಾಗಿದೆ, ಆದ್ದರಿಂದ ಸಂಜೆ ಉದ್ಯಾನವನಕ್ಕೆ ಹೋಗಿ ಸ್ವಲ್ಪ ಹೊತ್ತು ನಡೆಯೋಣ."
 READING = ".kannada.flac"  # beside the voice's .wav (a .flac, so it isn't listed as a voice of its own)
-HEARD = 0.5  # how alike what speech recognition hears in a reading and SENTENCE must be (says_sentence)
-heard = {}  # recordings already listened to, by their sound: whether each says SENTENCE (once per session)
+QUIET, PAUSE = 5, 1.0  # seconds of quiet that end a reading of SENTENCE (record_voice), and its longest pause kept
+# reading_fault: how alike what speech recognition hears in a reading and SENTENCE must be, and the share of the
+# letters of its last two words it must hear there
+HEARD, ENDING = 0.7, 0.5
+FAULTS = {  # what is wrong with a reading that isn't the whole sentence (reading_fault), to finish a plain sentence
+    "part": "stops before the end of the Kannada sentence",
+    "other": "doesn't sound like the Kannada sentence (speech recognition heard other words)"}
+heard = {}  # recordings already listened to, by their sound: what is wrong with each, if anything (once per session)
 
 
 def voices_dir() -> Path:
@@ -73,21 +79,24 @@ def save_voice(job, source_file: str, name: str, consent: bool, kannada_sentence
 
 def record_voice(job, name: str, seconds: int, consent: bool, kannada_sentence: bool = False) -> dict:
     """Records the computer's default microphone: it waits (up to a minute) for the person to start speaking, then
-    records 10 to 30 seconds, so no words are lost while the request reaches the engine. Esc saves nothing.
-    With kannada_sentence: the person reads SENTENCE for their saved voice `name`; it stops 2 seconds after they
-    stop speaking (at most 20 seconds)."""
+    records 10 to 30 seconds, so no words are lost while the request reaches the engine. The 0.6 seconds before the
+    first sound are kept too, so a soft first syllable isn't cut. Esc saves nothing.
+    With kannada_sentence: the person reads SENTENCE for their saved voice `name`; it stops once they have been
+    quiet for QUIET seconds (at most 40 seconds), so pausing to look at the next words doesn't end it. A 2-second
+    wait ended a reading at its comma, and the half reading made IndicF5 say the missing words before every text."""
     if not consent:
         raise ToolError(CONSENT)
     if kannada_sentence:
         voice_file(name)
     import sounddevice
-    seconds, step = (20 if kannada_sentence else min(max(int(seconds), SHORTEST), LONGEST)), RATE // 5
-    chunks, waited = [], 0
+    seconds, step = (40 if kannada_sentence else min(max(int(seconds), SHORTEST), LONGEST)), RATE // 5
+    lead, chunks, waited, quiet = [], [], 0, QUIET * 5  # quiet: in chunks of 0.2 s
     try:
         with sounddevice.InputStream(samplerate=RATE, channels=1, dtype="float32") as microphone:
             while len(chunks) * step < seconds * RATE:
                 chunk = microphone.read(step)[0][:, 0]
                 if not chunks and np.abs(chunk).max() < 0.02:  # not speaking yet
+                    lead = [*lead[-2:], chunk]
                     waited += step
                     if waited > 60 * RATE:
                         raise ToolError("Nothing was heard for a minute. Check the microphone is switched on and "
@@ -95,14 +104,15 @@ def record_voice(job, name: str, seconds: int, consent: bool, kannada_sentence: 
                     job.report(0, "Listening: start speaking whenever you are ready")
                     continue
                 chunks.append(chunk)
-                if kannada_sentence and len(chunks) > 15 and max(np.abs(c).max() for c in chunks[-10:]) < 0.02:
-                    break  # 2 seconds of quiet after the reading
+                if kannada_sentence and len(chunks) > quiet and max(np.abs(c).max() for c in chunks[-quiet:]) < 0.02:
+                    break  # QUIET seconds of quiet after the reading
                 left = seconds - len(chunks) * step / RATE
                 job.report(100 - left / seconds * 100, f"Recording ({left:.0f} seconds left)")
     except sounddevice.PortAudioError as e:  # no microphone, or it is in use
         log.warning("Recording failed: %s", e)
         raise ToolError("The microphone couldn't be used. Check one is connected and not in use, then try again.") from e
-    return keep_reading(job, np.concatenate(chunks), name) if kannada_sentence else keep(np.concatenate(chunks), name)
+    audio = np.concatenate(lead + chunks)
+    return keep_reading(job, audio, name) if kannada_sentence else keep(audio, name)
 
 
 def keep(audio: np.ndarray, name: str) -> dict:
@@ -123,24 +133,25 @@ def keep(audio: np.ndarray, name: str) -> dict:
 
 
 def keep_reading(job, audio: np.ndarray, voice: str) -> dict:
-    """The person's reading of SENTENCE, without the silence around it, as <voice>.kannada.flac, once speech
-    recognition heard the sentence in it. A new reading replaces the old one (the person read it again), like the
-    voice's pronunciation list."""
+    """The person's reading of SENTENCE, without the silence around it and with its pauses cut to PAUSE seconds, as
+    <voice>.kannada.flac, once speech recognition heard the whole sentence in it. A new reading replaces the old one
+    (the person read it again), like the voice's pronunciation list."""
     import librosa
     import soundfile
     if audio.size == 0 or np.abs(audio).max() < 0.01:
         raise ToolError("There is no sound in that recording. If it was recorded here, check the microphone is "
                         f"switched on and allowed ({MICROPHONE}).")
-    audio = librosa.effects.trim(audio, top_db=35)[0]
+    audio = shorter_pauses(librosa.effects.trim(audio, top_db=35)[0])
     seconds = len(audio) / RATE
     if not 3 <= seconds <= 15:
         raise ToolError(f"That reading is {seconds:.0f} seconds long, and the sentence takes about 6 to 9 seconds. "
                         "Read just the sentence once, at a normal pace.")
     with models.one_at_a_time(job):
-        if not says_sentence(audio, job.report):
-            raise ToolError("That recording doesn't sound like the Kannada sentence (speech recognition heard other "
-                            "words), so it wasn't kept. Read just the sentence once, in Kannada, with nothing else "
-                            "said while it records.")
+        fault = reading_fault(audio, job.report)
+    if fault:
+        raise ToolError(f"That recording {FAULTS[fault]}, so it wasn't kept. " + (
+            "Read the whole sentence again: pauses are fine." if fault == "part" else
+            "Read just the sentence once, in Kannada, with nothing else said while it records."))
     path = voice_file(voice).with_name(f"{voice}{READING}")
     part = path.with_name(path.name + ".part")
     soundfile.write(part, audio, RATE, format="FLAC")
@@ -148,13 +159,33 @@ def keep_reading(job, audio: np.ndarray, voice: str) -> dict:
     return {"voice": voice, "kannada_reading": str(path), "seconds": round(seconds, 1)}
 
 
-def says_sentence(audio: np.ndarray, report) -> bool:
-    """Whether a recording (samples at RATE) is a reading of SENTENCE: the accurate speech-to-text model listens with
-    the language set to Kannada, and what it hears must be at least HEARD alike to the sentence, letter by letter
-    (difflib's ratio of the Kannada letters in common). IndicF5 is told the reading says SENTENCE; a recording of
-    other words (the person talking in English while the microphone listened) made it say the sentence's last words
-    before every text. Measured: readings of the sentence 0.92 to 0.97 (halting ones too), 24 FLEURS Kannada
-    sentences against their own words 0.65 to 0.96, the first half of a reading 0.14 to 0.28, English speech 0.
+def shorter_pauses(audio: np.ndarray) -> np.ndarray:
+    """The recording with the middle of each pause longer than PAUSE seconds taken out. People reading an unfamiliar
+    sentence stop to look at the next words, and IndicF5 takes its pace from the reading: one 3-second pause made
+    every take about 17% slower, and a few would have made a reading too long to keep."""
+    import librosa
+    keep, edge = np.ones(len(audio), bool), int(PAUSE * RATE / 2)
+    sounds = librosa.effects.split(audio, top_db=35)
+    for (_, end), (start, _) in zip(sounds, sounds[1:]):
+        if start - end > 2 * edge:
+            keep[end + edge:start - edge] = False
+    return audio[keep]
+
+
+def reading_fault(audio: np.ndarray, report) -> str | None:
+    """None when a recording (samples at RATE) is a whole reading of SENTENCE, else what is wrong with it (a key of
+    FAULTS). The accurate speech-to-text model listens with the language set to Kannada; what it hears must be at least
+    HEARD alike to the sentence, letter by letter (difflib's ratio of the Kannada letters), with at least ENDING of the
+    letters of the sentence's last two words heard in their place. IndicF5 is told the reading says SENTENCE, and says
+    the words missing from it before every text: the second half of a reading that stopped at its comma (1.5.1), or
+    the sentence's last words for a recording of other words (English talk while the microphone listened, 1.5.0).
+    "part" is a recording at least half alike without the ending: a reading that stopped early.
+    Measured with reader voices: whole readings 0.92 to 0.97 alike, ending 0.75 to 0.92 (with a 3-second pause too);
+    stopped at the comma (with or without its first syllable) 0.54 to 0.63, the first 75% 0.63 to 0.74 and the first
+    90% 0.82 to 0.87, all with ending 0; English speech 0. 24 FLEURS Kannada sentences by real speakers against
+    their own words: 0.75 to 0.95 alike, ending 0.75 to 1. It listens in stretches of at most 10 seconds: in one
+    stretch the model writes at most about 224 tokens (the sentence takes 174, more when heard badly), and in the
+    usual 30-second stretches that cut the end off 9 of those 24 sentences.
     Only the accurate model writes Kannada (the fast and balanced ones heard none of it), and it runs on the processor
     here, so a graphics card that fails can't stop the Kannada voice. The caller holds models.one_at_a_time."""
     import difflib
@@ -165,11 +196,18 @@ def says_sentence(audio: np.ndarray, report) -> bool:
     if key not in heard:
         pipeline, _ = transcribe.load("large-v3-turbo", report, device="cpu")
         report(0, "Listening to the Kannada reading")
-        segments, _ = pipeline.transcribe(librosa.resample(audio, orig_sr=RATE, target_sr=16000), language="kn")
-        letters = [[ch for ch in text if "\u0c80" <= ch <= "\u0cff"]  # the Kannada letters, nothing else
-                   for text in ("".join(segment.text for segment in segments), SENTENCE)]
-        heard[key] = difflib.SequenceMatcher(None, *letters, autojunk=False).ratio() >= HEARD
-        log.info("The Kannada reading %s the sentence", "says" if heard[key] else "doesn't say")
+        segments, _ = pipeline.transcribe(librosa.resample(audio, orig_sr=RATE, target_sr=16000), language="kn",
+                                          chunk_length=10)
+        said, meant, last = ([ch for ch in text if "\u0c80" <= ch <= "\u0cff"]  # the Kannada letters, nothing else
+                             for text in ("".join(segment.text for segment in segments), SENTENCE,
+                                          " ".join(SENTENCE.split()[-2:])))
+        same = difflib.SequenceMatcher(None, said, meant, autojunk=False).get_matching_blocks()
+        alike = 2 * sum(block.size for block in same) / (len(said) + len(meant))
+        end = len(meant) - len(last)  # where the last two words start
+        ending = sum(max(0, block.b + block.size - max(block.b, end)) for block in same) / len(last)
+        heard[key] = (None if alike >= HEARD and ending >= ENDING else
+                      "part" if alike >= 0.5 and ending < ENDING else "other")
+        log.info("The Kannada reading: %.2f alike, %.2f of the ending heard (%s)", alike, ending, heard[key])
     return heard[key]
 
 
