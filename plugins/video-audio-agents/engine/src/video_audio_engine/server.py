@@ -234,10 +234,11 @@ async def save_voice(source_file: str, name: str, consent: bool, ctx: Context,
     silence around it, as Documents/VideoAudioAgents/voices/<name>.wav. Needs at least 10 seconds of speech.
     consent must be true: only after the person confirmed it is their own voice or they have the speaker's
     permission. Never replaces a saved voice ("name (2)"). Returns {voice, sample_file, seconds}.
-    kannada_sentence true: the file is the person reading list_voices' kannada_sentence once (3 to 15 seconds); once
-    speech recognition hears the sentence in it, it is kept with their saved voice `name` (replacing an earlier
-    reading), so speak and speak_timed can say Kannada directly in that voice when check_setup says kannada_voice.
-    A recording of other words is refused (an earlier reading stays). Returns {voice, kannada_reading, seconds}."""
+    kannada_sentence true: the file is the person reading list_voices' kannada_sentence once (3 to 15 seconds, long
+    pauses shortened); once speech recognition hears the whole sentence in it, it is kept with their saved voice
+    `name` (replacing an earlier reading), so speak and speak_timed can say Kannada directly in that voice when
+    check_setup says kannada_voice. A recording of other words, or one that stops before the end of the sentence, is
+    refused in one plain sentence (an earlier reading stays). Returns {voice, kannada_reading, seconds}."""
     return json.dumps(await progress.run(ctx, voices.save_voice, source_file, name, consent, kannada_sentence))
 
 
@@ -247,7 +248,8 @@ async def record_voice(name: str, consent: bool, ctx: Context, seconds: int = 20
     """Records the computer's microphone and saves it as a voice, like save_voice. It waits up to a minute for the
     person to start speaking, then records `seconds` (10 to 30). consent must be true, as for save_voice.
     Returns {voice, sample_file, seconds}. kannada_sentence true: records the person reading the Kannada sentence
-    for their saved voice `name`, as save_voice does with a file, and stops 2 seconds after they stop speaking."""
+    for their saved voice `name`, as save_voice does with a file, and stops 5 seconds after they stop speaking (so
+    pausing while reading is fine), at most 40 seconds."""
     return json.dumps(await progress.run(ctx, voices.record_voice, name, seconds, consent, kannada_sentence))
 
 
@@ -262,8 +264,8 @@ async def speak(voice: str, language: Language, ctx: Context, text: str | None =
     kannada_voice and the voice has its Kannada reading (list_voices: kannada_readings). Otherwise Kannada, and Tamil
     always, are read by an online reader voice and then changed into it (a weaker match). route says which:
     "direct" or "reader"; a note (one plain sentence to pass on) says why Kannada used the reader voice when the
-    Kannada voice model couldn't be downloaded or the voice's Kannada reading isn't the sentence (one saved before
-    readings were checked: the person reads it again). speed: little_slower (default, sounds most natural), slower,
+    Kannada voice model couldn't be downloaded or the voice's Kannada reading isn't the whole sentence (one saved
+    before 1.5.2 checked it: the person reads it again). speed: little_slower (default, sounds most natural), slower,
     as_made.
     Slow: about 5 to 8 seconds of work per second of speech. Returns {output_file, seconds, route, note?}."""
     return json.dumps(await progress.run(ctx, speech.speak, voice, language, speed, text, transcript_file,

@@ -383,18 +383,20 @@ It installs about 0.3 GB of programs and downloads the model (1.4 GB, once), and
 **Reading one sentence, once for each voice:** IndicF5 copies a voice from a recording and the exact words said in
 it, so each saved voice needs your reading of one short Kannada sentence. Claude shows it (it means "Hello! This is
 my voice. The weather is lovely today, so let's go to the park this evening and walk for a while.") and records you
-reading it once, at your normal pace; it starts at the first sound and stops by itself when you stop, so say nothing
+reading the whole of it once, at your normal pace. Pausing to look at the next words is fine: it starts at the first
+sound and stops by itself 5 seconds after you finish (long pauses are shortened in what is kept), so say nothing
 else near the microphone until it stops (no talking to someone, no voice typing). A phone recording of you reading
 it works too. Read it again any time to replace it. A voice saved before you set this up gets asked for the sentence
 the first time you want Kannada in it; until then, or for a voice whose speaker you can't ask, Kannada keeps the
 reader voice. The reading is kept beside the voice as `<voice>.kannada.flac`.
 
-**Each reading is checked.** Because IndicF5 is told the recording says exactly that sentence, a recording of other
-words makes it go wrong: it says the end of the sentence ("...walk for a while") before every text you give it. So
-before a reading is kept, speech recognition listens to it (about 15 seconds), and a recording that isn't the
-sentence is refused, with your earlier reading kept. A reading saved with version 1.5.0 is checked the first time
-it is used: if it isn't the sentence, that Kannada is made with the reader voice, and Claude asks you to read the
-sentence again.
+**Each reading is checked.** Because IndicF5 is told the recording says exactly that sentence, whatever the
+recording lacks comes out before every text you give it: the end of the sentence ("...walk for a while") for a
+recording of other words, or the whole second half for a reading that stopped at the comma. So before a reading is
+kept, speech recognition listens to it (about 15 seconds), and only the whole sentence, to its last words, is kept.
+Otherwise Claude tells you why in one sentence (other words, or it stopped before the end), and your earlier reading
+stays. A reading saved with version 1.5.0 or 1.5.1 is checked the first time it is used: if it isn't the whole
+sentence, that Kannada is made with the reader voice, and Claude asks you to read the sentence again.
 
 **It is slower than the other languages:** about 9 to 10 seconds of work for each second of Kannada speech on the
 computer it was tried on (24 processor threads), and longer on a computer with fewer. A one-minute reading takes

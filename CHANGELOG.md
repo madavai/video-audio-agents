@@ -2,6 +2,54 @@
 
 The version goes up with every change people should receive: a phase adds one to the middle number, a fix to the last. 1.0.0 is the release, after Phase 7.
 
+## 1.5.2
+
+### Fixes
+- **Only the whole Kannada sentence is kept as a reading.** On the owner's PC with 1.5.1, a new reading of the
+  sentence was accepted at 5.9 seconds, but it held only the first half, up to the comma (and its first syllable was
+  clipped). Kannada spoken in the voice then began with the missing half ("ಉದ್ಯಾನವನಕ್ಕೆ ಹೋಗಿ ಸ್ವಲ್ಪ ಹೊತ್ತು ನಡೆ…") and
+  lost the start of the words asked for. Two weaknesses together:
+  - **The recorder stopped at the comma.** It stopped after 2 seconds of quiet, and people pause while reading an
+    unfamiliar sentence. It now waits 5 seconds of quiet (at most 40 seconds in all), and keeps the 0.6 seconds
+    before the first sound it starts on, so a soft first syllable isn't cut.
+  - **The check let half a sentence through.** 1.5.1 kept a reading at least half alike to the sentence; a reading
+    up to the comma is 0.54 to 0.63 alike. Now what speech recognition hears must be at least 0.7 alike, and at
+    least half the letters of the sentence's last two words ("ಹೊತ್ತು ನಡೆಯೋಣ") must be heard in their place. A
+    reading without them is refused in one sentence: "That recording stops before the end of the Kannada sentence,
+    so it wasn't kept. Read the whole sentence again: pauses are fine."
+  - A reading kept by 1.5.0 or 1.5.1 is checked the same way the first time it is used in a session: if it isn't
+    the whole sentence, that Kannada is made with the reader voice, with a `note` saying why (it stops before the
+    end, or other words were heard) and asking for the whole sentence again.
+- **Pauses longer than a second are shortened to one second in a reading.** IndicF5 takes its pace from the
+  reading: a reading with a 3-second pause made the owner's text 17% slower (6.9 seconds against 5.9), and a slow
+  reader with a few pauses would have gone past the 15-second limit and been refused. Pauses of up to a second (the
+  ones at "!" and ".") are kept as they are. With the pause shortened, the same reading was kept at 10.5 seconds
+  and the text took 6.1 seconds.
+- **Speech recognition listens to a reading in stretches of at most 10 seconds.** In one stretch it writes at most
+  about 224 tokens, and in its usual 30-second stretches that cut the end off 9 of 24 FLEURS sentences by real
+  Kannada speakers. The sentence takes 174, more when it is heard badly, so a real reading could have lost its last
+  words and been refused. In 10-second stretches all 24 were heard to the end.
+- The voice helper asks for the whole sentence, says pausing is fine, and gives the reason when a reading is
+  refused.
+
+### Tried for real
+- **The owner's case, reproduced without the owner's microphone or voice.** A stand-in microphone played a Microsoft
+  reader voice reading the sentence with a 3-second pause at the comma, through the real recorder, check and IndicF5,
+  with the owner's text. With 1.5.1: the recording stopped at the pause, 5.9 seconds were kept and accepted, and the
+  take (3.9 seconds) began "ಓಡ್ಯೋಗಿ ಸುಪೋತ್ತನ…", the missing "…ಹೋಗಿ ಸ್ವಲ್ಪ ಹೊತ್ತು ನ…", as the owner heard.
+- **With 1.5.2:** the reading with the pause was recorded whole and kept, and the take said exactly the owner's text,
+  in both reader voices. The fluent reading was kept as before, and its take was right too. The reading cut at the
+  comma, with or without its first syllable, was refused with the new sentence. The half reading saved as 1.5.1
+  would have: on first use its Kannada came from the reader voice, right, with the note "...stops before the end of
+  the Kannada sentence. Read the whole sentence again...". No take had anything before the owner's words.
+- **How well the check tells readings apart** (alike, and share of the last two words heard; speech recognition in
+  10-second stretches): whole readings by two reader voices 0.92 to 0.97 and 0.75 to 0.92, with a 3-second pause
+  too; stopped at the comma (with or without its first syllable) 0.54 to 0.63, the first 75% 0.63 to 0.74 and the
+  first 90% 0.82 to 0.87, all with none of the ending; 24 FLEURS sentences by real speakers against their own words
+  0.75 to 0.95 and 0.75 to 1.
+- **The real model's test (`-m slow`)** also refuses the sentence read only up to its comma, and keeps a reading
+  with a 3-second pause at the comma, shortened (passed, 344 seconds).
+
 ## 1.5.1
 
 ### Fixes

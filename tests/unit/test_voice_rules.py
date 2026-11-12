@@ -1,6 +1,7 @@
 """The voice rules that need no model: text pieces, cut points, the 10-second sample, dubbing timing, speeds,
 language routing, consent, recording, and one big model in memory at a time."""
 import random
+import re
 import sys
 import types
 
@@ -234,6 +235,13 @@ def test_only_the_six_languages_and_the_right_model_for_each(monkeypatch, tmp_pa
     assert how["route"] == "reader" and used == ["voice", "kn-IN-GaganNeural", None]
     assert how["note"].startswith("This Kannada was made with the reader voice, because the Kannada reading saved for "
                                   "this voice doesn't sound like the Kannada sentence")
+    # One kept by 1.5.1 that stopped at the comma (a 2-second wait ended it): the reader, with a note that says so.
+    used.clear()
+    listener.words = "ನಮಸ್ಕಾರ ಇದು ನನ್ನ ದ್ವನಿ. ಇಂದು ಹವಾಮಾನ ತುಂಬ ಚನ್ನಾಗಿದೆ."  # as heard in a reader voice's half reading
+    monkeypatch.setattr(voices, "read_audio", lambda file, rate: speechlike(6, rate))
+    how = speech.spoken(report, ["ನಮಸ್ಕಾರ."], "Kannada", "Me", tmp_path, "Speaking")[2]
+    assert how["route"] == "reader" and used == ["voice", "kn-IN-GaganNeural", None]
+    assert "reading saved for this voice stops before the end of the Kannada sentence. Read the whole" in how["note"]
 
     # Set up, but this voice has no reading yet (saved before, or the speaker wasn't asked): the reader, as before.
     used.clear()
@@ -310,7 +318,7 @@ def test_an_unknown_voice_names_the_saved_ones(monkeypatch):
 
 def test_the_kannada_sentence_is_kept_with_its_voice(monkeypatch, listener):
     """The person reads the sentence for a saved voice: kept beside it as <voice>.kannada.flac (not listed as a voice
-    of its own), named in kannada_readings; reading it again replaces it. Recording stops 2 s after the reading."""
+    of its own), named in kannada_readings; reading it again replaces it. Recording stops QUIET s after the reading."""
     fake_microphone(monkeypatch, speechlike(20, voices.RATE))
     voices.record_voice(progress.Job(), "Anna", 20, True)
     microphone = fake_microphone(monkeypatch, np.concatenate([np.zeros(voices.RATE, np.float32),
@@ -318,7 +326,7 @@ def test_the_kannada_sentence_is_kept_with_its_voice(monkeypatch, listener):
     saved = voices.record_voice(progress.Job(), "Anna", 20, True, kannada_sentence=True)
     assert saved["voice"] == "Anna" and saved["seconds"] == pytest.approx(7, abs=0.3)
     assert saved["kannada_reading"] == str(voices.voices_dir() / "Anna.kannada.flac")
-    assert microphone.frames <= (1 + 7 + 2.4) * voices.RATE  # not the 20 seconds a voice gets
+    assert microphone.frames <= (1 + 7 + voices.QUIET + 0.4) * voices.RATE  # not the 40 seconds it could take
     listed = voices.list_voices()
     assert listed["voices"] == ["Anna"] and listed["kannada_readings"] == ["Anna"]
     assert listed["kannada_sentence"] == voices.SENTENCE and voices.kannada_reading("Anna").suffix == ".flac"
@@ -326,6 +334,22 @@ def test_the_kannada_sentence_is_kept_with_its_voice(monkeypatch, listener):
     again = voices.record_voice(progress.Job(), "Anna", 20, True, kannada_sentence=True)
     assert again["seconds"] == pytest.approx(5, abs=0.3)
     assert sorted(p.name for p in voices.voices_dir().iterdir()) == ["Anna.kannada.flac", "Anna.wav"]
+
+
+def test_a_kannada_reading_may_pause_and_start_softly(monkeypatch, listener):
+    """People pause while reading an unfamiliar sentence: a 3-second pause doesn't end the recording (a 2-second wait
+    ended a reading at its comma, and IndicF5 said the missing half before every text). The pause is kept shorter
+    (IndicF5 takes its pace from the reading). The soft start of the first syllable, too quiet to start the
+    recording, is kept as well."""
+    fake_microphone(monkeypatch, speechlike(20, voices.RATE))
+    voices.record_voice(progress.Job(), "Anna", 20, True)
+    silence = np.zeros(3 * voices.RATE, np.float32)
+    microphone = fake_microphone(monkeypatch, np.concatenate([
+        silence, speechlike(0.4, voices.RATE, loudness=0.015), speechlike(4, voices.RATE), silence,
+        speechlike(4, voices.RATE)]))
+    saved = voices.record_voice(progress.Job(), "Anna", 20, True, kannada_sentence=True)
+    assert saved["seconds"] == pytest.approx(0.4 + 4 + voices.PAUSE + 4, abs=0.2)
+    assert microphone.frames <= (3 + 11.4 + voices.QUIET + 0.4) * voices.RATE
 
 
 def test_a_kannada_reading_needs_consent_a_saved_voice_and_the_sentence_alone(monkeypatch):
@@ -344,10 +368,12 @@ def test_a_kannada_reading_needs_consent_a_saved_voice_and_the_sentence_alone(mo
 
 
 def test_a_kannada_reading_is_kept_only_if_it_says_the_sentence(monkeypatch, listener):
-    """IndicF5 is told the reading says the sentence: a recording of other words (the person talking in English while
-    the microphone listened) made it say the sentence's last words before every text. So speech recognition (stood in
-    for) listens first: English, another sentence or the first words alone are refused, and the reading kept before
-    stays. Heard with a few letters wrong, as a real reading is, it is kept. A recording is listened to once."""
+    """IndicF5 is told the reading says the sentence, and says the words missing from it before every text: the
+    sentence's last words for a recording of other words (the person talking in English while the microphone
+    listened), the second half for a reading that stopped at its comma. So speech recognition (stood in for) listens
+    first, and only the whole sentence is kept: English, another sentence and the first words alone are refused, and
+    so is a reading without its last words, with a sentence that says so. The reading kept before stays. Heard with a
+    few letters wrong, as a real reading is, it is kept. A recording is listened to once."""
     fake_microphone(monkeypatch, speechlike(20, voices.RATE))
     voices.record_voice(progress.Job(), "Anna", 20, True)
     for _ in range(2):  # the same recording twice: listened to once
@@ -355,19 +381,31 @@ def test_a_kannada_reading_is_kept_only_if_it_says_the_sentence(monkeypatch, lis
         voices.record_voice(progress.Job(), "Anna", 20, True, kannada_sentence=True)
     assert listener.times == 1
     kept = voices.kannada_reading("Anna").read_bytes()
-    for i, words in enumerate(["I have a question. Now this plan is designed as part of it.",
-                               "ನಮಸ್ಕಾರ! ಈಗ ನಾನು ನನ್ನದೇ ಧ್ವನಿಯಲ್ಲಿ ಕನ್ನಡ ಮಾತನಾಡುತ್ತಿದ್ದೇನೆ.",
-                               "ನಮಸ್ಕಾರ! ಇದು ನನ್ನ ಧ್ವನಿ."]):
+    other = "That recording doesn't sound like the Kannada sentence .* so it wasn't kept"
+    part = ("That recording stops before the end of the Kannada sentence, so it wasn't kept. Read the whole sentence "
+            "again: pauses are fine.")
+    for i, (words, refused) in enumerate([
+            ("I have a question. Now this plan is designed as part of it.", other),
+            ("ನಮಸ್ಕಾರ! ಈಗ ನಾನು ನನ್ನದೇ ಧ್ವನಿಯಲ್ಲಿ ಕನ್ನಡ ಮಾತನಾಡುತ್ತಿದ್ದೇನೆ.", other),
+            ("ನಮಸ್ಕಾರ! ಇದು ನನ್ನ ಧ್ವನಿ.", other),
+            # as speech recognition heard reader voices stop at the comma (the first syllable cut too), and before
+            # the last two words: 0.54 to 0.87 alike, none of the ending
+            ("ಸ್ಕಾರಾ. ಇದು ನನ್ನ ದ್ವನಿ. ಇಂದು ಹವಾಮಾನ ತುಂಬಾ ಚನ್ನಾಗಿದೆ.", re.escape(part)),
+            ("ನಮಸ್ಕಾರಾ. ಇದು ನನ್ನ ದ್ವನಿ. ಇಂದು ಹವಾಮಾನ ತುಂಬಾ ಚನ್ನಾಗಿದೆ. ಆದರಿಂದ ಸಂಜೆ ಉದ್ಯಾನವನಕ್ಕೆ ಹೋಗಿ ಸೊಲ್",
+             re.escape(part))]):
         listener.words = words
-        fake_microphone(monkeypatch, speechlike(7, voices.RATE, loudness=0.3 + 0.05 * i))  # another recording each time
-        with pytest.raises(ToolError, match="doesn't sound like the Kannada sentence .* so it wasn't kept"):
+        fake_microphone(monkeypatch, speechlike(7, voices.RATE, loudness=0.3 + 0.03 * i))  # another recording each time
+        with pytest.raises(ToolError, match=refused):
             voices.record_voice(progress.Job(), "Anna", 20, True, kannada_sentence=True)
-    assert voices.kannada_reading("Anna").read_bytes() == kept and listener.times == 4
-    listener.words = ("ನಮಸ್ಕಾರ ಇದು ನನ್ನ ದ್ವನಿ. ಇಂದು ಹವಾಮಾನ ತುಂಬ ಚನ್ನಾಗಿದೆ. ಆದರಿಂದ ಸಂಜೆ ಉದ್ಯಾನವನಕ್ಕೆ ಹೋಗಿ ಸುಲ್ಪ ಹೊತ್ತು "
-                      "ನಡೆಯೋನ.")  # as speech recognition heard a reader voice read it
-    fake_microphone(monkeypatch, speechlike(8, voices.RATE))
-    saved = voices.record_voice(progress.Job(), "Anna", 20, True, kannada_sentence=True)
-    assert saved["seconds"] == pytest.approx(8, abs=0.3) and voices.kannada_reading("Anna").read_bytes() != kept
+    assert voices.kannada_reading("Anna").read_bytes() == kept and listener.times == 6
+    for i, words in enumerate([  # as speech recognition heard reader voices read it all (one with a 3-second pause)
+            "ನಮಸ್ಕಾರ ಇದು ನನ್ನ ದ್ವನಿ. ಇಂದು ಹವಾಮಾನ ತುಂಬಾ ಚನ್ನಾಗಿದೆ. ಆದರಿಂದ ಸಂಜೆ ಉದ್ಯಾನವನಕ್ಕೆ ಹೋಗಿ ಸೊಲ್ಪಹೊತ್ತು ನಡಿಯುನ.",
+            "ಇದು ನನ್ನ ದ್ವನಿ ಇಂದು ಹವಾಮಾನ ತುಂಬಾ ಚನ್ನಾಗಿದೆ ಆದ್ದರಿಂದ ಸಂಜೆ ಉದ್ಯಾನವನಕ್ಕೆ ಹೋಗಿ ಸ್ವಲ್ಪಹೊತ್ತು ನಡೆಯೋಣ",
+            "ನಮಸ್ಕಾರ ಇದು ನನ್ನ ದ್ವನಿ. ಇಂದು ಹವಾಮಾನ ತುಂಬಾ ಚನ್ನಾಗಿದೆ. ಆದ್ದರಿಂದ ಸಂಜೆ ಉದ್ಯಾನವನಕ್ಕೆ ಹೋಗಿ ಸ್ವಲ್ಪಹುತ್ತು ನಡಿಯುನ."]):
+        listener.words = words
+        fake_microphone(monkeypatch, speechlike(8, voices.RATE, loudness=0.3 + 0.05 * i))
+        saved = voices.record_voice(progress.Job(), "Anna", 20, True, kannada_sentence=True)
+        assert saved["seconds"] == pytest.approx(8, abs=0.3) and voices.kannada_reading("Anna").read_bytes() != kept
 
 
 def test_one_big_model_in_memory_at_a_time(monkeypatch):
