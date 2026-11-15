@@ -6,7 +6,9 @@ reading). Needs the internet for the reader voices. The saved voice is a Microso
 voice is copied."""
 import asyncio
 
+import numpy as np
 import pytest
+import soundfile
 from mcp.server.mcpserver.exceptions import ToolError
 
 from video_audio_engine import indic, models, progress, speech, voices
@@ -31,16 +33,25 @@ def reader_says(text, reader, file):
 
 @pytest.fixture
 def kannada_voice(with_models, tmp_path):
-    """A saved voice "Sapna" (a Microsoft Kannada reader voice) with its reading of the Kannada sentence. Another
-    Kannada sentence, read in the same voice, is refused as its reading: speech recognition hears other words."""
+    """A saved voice "Sapna" (a Microsoft Kannada reader voice) with its reading of the Kannada sentence, read with a
+    3-second pause at the comma: kept, the pause shortened. Refused as its reading: another Kannada sentence read in
+    the same voice (speech recognition hears other words), and the sentence read only up to its comma."""
     if not indic.installed() or not all(models.is_present(name) for name in ("kannada", "english", "large-v3-turbo")):
         pytest.skip("needs --extra indic, and IndicF5's, Chatterbox's and large-v3-turbo's files in .test-data/models")
     run(voices.save_voice, str(reader_says(PASSAGE, "kn-IN-SapnaNeural", tmp_path / "passage.mp3")), "Sapna", True)
     other = reader_says(TEXT, "kn-IN-SapnaNeural", tmp_path / "other.mp3")  # it too starts "ನಮಸ್ಕಾರ"
     with pytest.raises(ToolError, match="doesn't sound like the Kannada sentence"):
         run(voices.save_voice, str(other), "Sapna", True, True)
-    reading = reader_says(voices.SENTENCE, "kn-IN-SapnaNeural", tmp_path / "sentence.mp3")
-    assert 3 <= run(voices.save_voice, str(reading), "Sapna", True, True)["seconds"] <= 15
+    first, second = voices.SENTENCE.split(", ")
+    half = reader_says(first + ",", "kn-IN-SapnaNeural", tmp_path / "half.mp3")
+    with pytest.raises(ToolError, match="stops before the end of the Kannada sentence"):
+        run(voices.save_voice, str(half), "Sapna", True, True)
+    paused = np.concatenate([voices.read_audio(half, voices.RATE), np.zeros(3 * voices.RATE, np.float32),
+                             voices.read_audio(reader_says(second, "kn-IN-SapnaNeural", tmp_path / "end.mp3"),
+                                               voices.RATE)])
+    soundfile.write(tmp_path / "sentence.flac", paused, voices.RATE)
+    assert 3 <= run(voices.save_voice, str(tmp_path / "sentence.flac"), "Sapna", True, True)["seconds"] <= (
+        len(paused) / voices.RATE - 2.5)
     return tmp_path
 
 

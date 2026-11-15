@@ -187,16 +187,16 @@ def spoken(report, texts: list, language: str, voice: str, tmp, label: str) -> t
     sample rate and how they were made: {"route": "direct"} (a voice model speaks in the voice) or {"route":
     "reader"} (an online reader voice reads it, then it is changed into the voice), with a "note" when Kannada was
     meant to be direct but IndicF5 couldn't be downloaded (Hugging Face refused the key, or the connection failed) or
-    the voice's reading isn't the sentence (one kept before readings were checked): the Kannada is still made, with
+    the voice's reading isn't the whole sentence (one kept before 1.5.2 checked it): the Kannada is still made, with
     the reader voice."""
     sample = voices.sample(voice, tmp)  # an unknown voice is reported before a model loads
     reading = voices.kannada_reading(voice) if language == "Kannada" and indic.ready() else None
     how = {"route": "direct" if reading or language in CLONED else "reader"}
-    if reading and not voices.says_sentence(voices.read_audio(reading, voices.RATE), report):  # one kept by 1.5.0
+    fault = reading and voices.reading_fault(voices.read_audio(reading, voices.RATE), report)  # kept by 1.5.0 or 1.5.1
+    if fault:
         reading, how = None, {"route": "reader", "note": "This Kannada was made with the reader voice, because the "
-                              "Kannada reading saved for this voice doesn't sound like the Kannada sentence (speech "
-                              "recognition heard other words). Read the sentence again to have Kannada in the voice "
-                              "itself."}
+                              f"Kannada reading saved for this voice {voices.FAULTS[fault]}. Read the whole sentence "
+                              "again to have Kannada in the voice itself."}
     if reading:
         try:
             model = indic.load(report)

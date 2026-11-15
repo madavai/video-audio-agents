@@ -27,15 +27,15 @@ def private_data(tmp_path, monkeypatch):
 
 @pytest.fixture
 def listener(monkeypatch):
-    """The accurate speech-to-text model, stood in for where it checks that a Kannada reading says the sentence
-    (voices.says_sentence): it hears `listener.words` (the sentence, unless a test changes them) and counts in
+    """The accurate speech-to-text model, stood in for where it checks that a Kannada reading is the whole sentence
+    (voices.reading_fault): it hears `listener.words` (the sentence, unless a test changes them) and counts in
     `listener.times` how often it listened."""
     from video_audio_engine import transcribe, voices
     listener = types.SimpleNamespace(words=voices.SENTENCE, times=0)
 
     class Pipeline:
-        def transcribe(self, audio, language):
-            assert language == "kn"
+        def transcribe(self, audio, language, chunk_length):
+            assert language == "kn" and chunk_length == 10
             listener.times += 1
             return [types.SimpleNamespace(text=listener.words)], None
 
